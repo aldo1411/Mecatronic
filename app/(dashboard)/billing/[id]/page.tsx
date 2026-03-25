@@ -488,7 +488,7 @@ export default function BillingDetailPage() {
                   <input
                     type="text"
                     value={svcSearch}
-                    onChange={e => { setSvcSearch(e.target.value); setSvcPage(1); setSelectedService(null); setSvcPrice('') }}
+                    onChange={e => { setSvcSearch(e.target.value); setSvcPage(1); setSelectedService(null) }}
                     placeholder="Buscar servicio…"
                     className="w-full bg-surface-2 border border-surface-3 rounded-lg px-3 py-2 text-[12px] text-text-primary outline-none focus:border-brand-400 transition-colors"
                   />
