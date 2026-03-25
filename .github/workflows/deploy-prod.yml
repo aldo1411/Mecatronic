@@ -1,0 +1,52 @@
+name: Deploy — Prod
+
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: "Motivo del despliegue (opcional)"
+        required: false
+        default: "Release manual"
+
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    name: Build & Deploy to Production
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://aldo1411.github.io/Mecatronic/
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build (static export)
+        run: npm run build
+        env:
+          NEXT_BASE_PATH: /Mecatronic
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+
+      - name: Deploy to gh-pages (root)
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./out
+          keep_files: true
+          exclude_assets: "dev"
+          commit_message: "deploy(prod): ${{ github.sha }} — ${{ github.event.inputs.reason }}"
