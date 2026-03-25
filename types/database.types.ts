@@ -140,8 +140,8 @@ export interface Database {
           average_cost: number
           updated_at: string
         }
-        Insert: Omit<Database['public']['Tables']['inventory_stock']['Row'], 'id' | 'updated_at'>
-        Update: Partial<Database['public']['Tables']['inventory_stock']['Insert']>
+        Insert: Omit<Database['public']['Tables']['inventory_inventario']['Row'], 'id' | 'updated_at'>
+        Update: Partial<Database['public']['Tables']['inventory_inventario']['Insert']>
       }
       inventory_entries: {
         Row: {

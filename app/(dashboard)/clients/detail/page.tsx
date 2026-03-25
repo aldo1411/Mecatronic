@@ -1,5 +1,5 @@
 'use client'
-import { useParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Topbar } from '@/components/layout/Topbar'
 import { useQuery } from '@tanstack/react-query'
@@ -9,8 +9,8 @@ import { formatDate } from '@/lib/utils'
 import { WorkOrderBadge } from '@/components/shared/StatusBadge'
 import { Car, Plus, Loader2 } from 'lucide-react'
 
-export default function ClientDetailPage() {
-  const { id } = useParams<{ id: string }>()
+function ClientDetailPage() {
+  const id = useSearchParams().get('id') ?? ''
 
   const { data: profile, isLoading: loadingProfile } = useQuery({
     queryKey: ['profile', id],
@@ -82,7 +82,7 @@ export default function ClientDetailPage() {
                 {orders.map((order: { id: string; folio: string; state: string; total_cost: number; created_at: string; vehicles?: { brand: string; model: string; year: number } }) => (
                   <Link
                     key={order.id}
-                    href={`/service-orders/${order.id}`}
+                    href={`/service-orders/detail?id=${order.id}`}
                     className="flex items-center gap-3 px-4 py-3 border-b border-surface-3/40 last:border-0 hover:bg-surface-2 transition-colors"
                   >
                     <div className="flex-shrink-0">
@@ -168,4 +168,9 @@ export default function ClientDetailPage() {
       </div>
     </div>
   )
+}
+
+import { Suspense } from 'react'
+export default function Page() {
+  return <Suspense><ClientDetailPage /></Suspense>
 }

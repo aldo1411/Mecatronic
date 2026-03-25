@@ -81,18 +81,13 @@ export default function InventoryEntriesPage() {
                 <TableLoader cols={7} />
               ) : entries.length === 0 ? (
                 <tr><td colSpan={7} className="px-4 py-8 text-center text-[12px] text-text-faint">Sin entradas registradas</td></tr>
-              ) : entries.map((entry: {
-                id: string; quantity: number; unit_cost: number; total_cost: number;
-                invoice_ref: string | null; created_at: string;
-                parts?: { name: string; sku: string | null; unit: string };
-                suppliers?: { name: string }
-              }) => (
+              ) : entries.map((entry) => (
                 <tr key={entry.id} className="border-b border-surface-3/40 last:border-0 hover:bg-surface-2/50 transition-colors">
                   <td className="px-4 py-3">
                     <p className="text-[12px] font-medium text-text-primary">{entry.parts?.name ?? '—'}</p>
                     {entry.parts?.sku && <p className="text-[10px] text-text-faint">SKU: {entry.parts.sku}</p>}
                   </td>
-                  <td className="px-4 py-3 text-[12px] text-text-muted">{entry.suppliers?.name ?? '—'}</td>
+                  <td className="px-4 py-3 text-[12px] text-text-muted">{entry.suppliers?.[0]?.name ?? '—'}</td>
                   <td className="px-4 py-3 text-[12px] text-text-primary">{entry.quantity} {entry.parts?.unit ?? ''}</td>
                   <td className="px-4 py-3 text-[12px] text-text-muted">{formatCurrency(entry.unit_cost)}</td>
                   <td className="px-4 py-3 text-[12px] font-medium text-text-primary">{formatCurrency(entry.total_cost ?? entry.unit_cost * entry.quantity)}</td>
@@ -207,7 +202,7 @@ export default function InventoryEntriesPage() {
                   className="w-full bg-surface-2 border border-surface-3 rounded-lg px-3 py-2 text-[12px] text-text-primary outline-none focus:border-brand-400 transition-colors"
                 >
                   <option value="">Sin proveedor</option>
-                  {(suppliers ?? []).map(s => (
+                  {(suppliers?.data ?? []).map(s => (
                     <option key={s.id} value={s.id}>{s.name}</option>
                   ))}
                 </select>

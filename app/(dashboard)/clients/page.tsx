@@ -107,7 +107,7 @@ export default function ClientsPage() {
                       <td className="px-4 py-3 text-[12px] text-text-muted">{phone?.contact ?? '—'}</td>
                       <td className="px-4 py-3 text-[12px] text-text-muted">—</td>
                       <td className="px-4 py-3">
-                        <Link href={`/clients/${client.id}`} className="text-[11px] text-brand-300 hover:text-brand-200 transition-colors">
+                        <Link href={`/clients/detail?id=${client.id}`} className="text-[11px] text-brand-300 hover:text-brand-200 transition-colors">
                           Ver →
                         </Link>
                       </td>
@@ -157,7 +157,7 @@ export default function ClientsPage() {
                 Cancelar
               </button>
               <button
-                onClick={() => createMutation.mutate({ name: form.name, lastName: form.lastName, secondLastName: form.secondLastName || undefined, rfc: form.rfc || undefined, phone: form.phone || undefined, email: form.email || undefined, workshopId: activeWorkshop!.id })}
+                onClick={() => createMutation.mutate(form)}
                 disabled={!form.name || !form.lastName || createMutation.isPending}
                 className="flex items-center gap-1.5 bg-brand-400 hover:bg-brand-300 disabled:opacity-50 text-brand-100 px-4 py-2 rounded-lg text-[12px] font-medium transition-colors"
               >

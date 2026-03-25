@@ -1,5 +1,5 @@
 'use client'
-import { useParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useState, useRef, useMemo } from 'react'
 import { Topbar } from '@/components/layout/Topbar'
@@ -523,8 +523,8 @@ function AddItemModal({ workOrderId, onClose }: { workOrderId: string; onClose: 
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
-export default function ServiceOrderDetailPage() {
-  const { id }               = useParams<{ id: string }>()
+function ServiceOrderDetailPage() {
+  const id = useSearchParams().get('id') ?? ''
   const { activeWorkshop }   = useWorkshopStore()
   const { data: order, isLoading } = useWorkOrder(id)
   const updateState    = useUpdateWorkOrderState()
@@ -552,7 +552,7 @@ export default function ServiceOrderDetailPage() {
   const photos   = (order.photos ?? []) as string[]
 
   const currentStateIdx = STATE_ORDER.indexOf(order.state)
-  const transition      = STATE_TRANSITIONS[order.state]
+  const transition      = STATE_TRANSITIONS[order.state as WorkOrderState]
   const vehicleLabel    = vehicle ? `${vehicle.brand} ${vehicle.model} ${vehicle.year}` : ''
 
   const subtotal = parts.reduce((s, p) => s + p.sale_price * p.quantity, 0)
@@ -669,7 +669,7 @@ export default function ServiceOrderDetailPage() {
             </button>
             {order.state === 'ready' && (
               <Link
-                href={hasInvoice ? `/billing/${activeInvoice!.id}` : `/billing?workOrderId=${order.id}`}
+                href={hasInvoice ? `/billing/detail?id=${activeInvoice!.id}` : `/billing?workOrderId=${order.id}`}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-950 border border-emerald-800 hover:bg-emerald-900 text-emerald-400 rounded-lg text-[12px] font-medium transition-colors"
               >
                 <Banknote size={13} /> Cobrar
@@ -791,7 +791,7 @@ export default function ServiceOrderDetailPage() {
               <div className="px-4 py-3 border-b border-surface-3 flex items-center justify-between">
                 <p className="text-[11px] font-medium text-text-faint uppercase tracking-wider">Refacciones y servicios</p>
                 <Link
-                  href={hasInvoice ? `/billing/${activeInvoice!.id}` : `/billing?workOrderId=${order.id}`}
+                  href={hasInvoice ? `/billing/detail?id=${activeInvoice!.id}` : `/billing?workOrderId=${order.id}`}
                   className="flex items-center gap-1 text-[11px] text-brand-300 hover:text-brand-200 transition-colors"
                 >
                   Gestionar en cobro →
@@ -1019,4 +1019,9 @@ export default function ServiceOrderDetailPage() {
       )}
     </div>
   )
+}
+
+import { Suspense } from 'react'
+export default function Page() {
+  return <Suspense><ServiceOrderDetailPage /></Suspense>
 }

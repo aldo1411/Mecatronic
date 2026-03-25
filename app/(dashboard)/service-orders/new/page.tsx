@@ -106,7 +106,7 @@ export default function NewServiceOrderPage() {
       estimatedDelivery: details.estimatedDelivery || undefined,
       mechanicId: details.mechanicId || undefined,
     })
-    router.push(`/service-orders/${order.id}`)
+    router.push(`/service-orders/detail?id=${order.id}`)
   }
 
   const STEPS: { key: Step; label: string; icon: typeof User }[] = [

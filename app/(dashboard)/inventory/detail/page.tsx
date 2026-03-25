@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { use } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Topbar } from '@/components/layout/Topbar'
 import { usePartDetail } from '@/hooks/useInventory'
@@ -13,8 +13,8 @@ import { TableLoader } from '@/components/shared/Loader'
 
 const HISTORY_SIZE = 15
 
-export default function PartDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params)
+function PartDetailPage() {
+  const id = useSearchParams().get('id') ?? ''
   const { activeWorkshop } = useWorkshopStore()
   const { data: part, isLoading: partLoading } = usePartDetail(id)
   const [entriesPage, setEntriesPage] = useState(1)
@@ -149,15 +149,12 @@ export default function PartDetailPage({ params }: { params: Promise<{ id: strin
               <tbody>
                 {entriesLoading ? <TableLoader cols={6} /> : (entriesData?.data ?? []).length === 0 ? (
                   <tr><td colSpan={6} className="px-4 py-6 text-center text-[12px] text-text-faint">Sin entradas registradas</td></tr>
-                ) : (entriesData?.data ?? []).map((e: {
-                  id: string; quantity: number; unit_cost: number; invoice_ref: string | null; created_at: string
-                  suppliers?: { name: string } | null
-                }) => (
+                ) : (entriesData?.data ?? []).map((e) => (
                   <tr key={e.id} className="border-b border-surface-3/40 last:border-0 hover:bg-surface-2/50 transition-colors">
                     <td className="px-4 py-3 text-[12px] text-brand-300 font-medium">+{e.quantity} {part.unit}</td>
                     <td className="px-4 py-3 text-[12px] text-text-muted">{formatCurrency(e.unit_cost)}</td>
                     <td className="px-4 py-3 text-[12px] text-text-primary font-medium">{formatCurrency(e.quantity * e.unit_cost)}</td>
-                    <td className="px-4 py-3 text-[12px] text-text-muted">{e.suppliers?.name ?? '—'}</td>
+                    <td className="px-4 py-3 text-[12px] text-text-muted">{e.suppliers?.[0]?.name ?? '—'}</td>
                     <td className="px-4 py-3 text-[12px] text-text-muted">{e.invoice_ref ?? '—'}</td>
                     <td className="px-4 py-3 text-[11px] text-text-faint">{formatDateTime(e.created_at)}</td>
                   </tr>
@@ -183,13 +180,10 @@ export default function PartDetailPage({ params }: { params: Promise<{ id: strin
               <tbody>
                 {usageLoading ? <TableLoader cols={5} /> : (usageData?.data ?? []).length === 0 ? (
                   <tr><td colSpan={5} className="px-4 py-6 text-center text-[12px] text-text-faint">Sin uso registrado en órdenes</td></tr>
-                ) : (usageData?.data ?? []).map((u: {
-                  id: string; quantity: number; sale_price: number; created_at: string
-                  work_orders?: { folio: string; state: string } | null
-                }) => (
+                ) : (usageData?.data ?? []).map((u) => (
                   <tr key={u.id} className="border-b border-surface-3/40 last:border-0 hover:bg-surface-2/50 transition-colors">
-                    <td className="px-4 py-3 text-[12px] font-medium text-text-primary">{u.work_orders?.folio ?? '—'}</td>
-                    <td className="px-4 py-3 text-[11px] text-text-muted capitalize">{u.work_orders?.state ?? '—'}</td>
+                    <td className="px-4 py-3 text-[12px] font-medium text-text-primary">{u.work_orders?.[0]?.folio ?? '—'}</td>
+                    <td className="px-4 py-3 text-[11px] text-text-muted capitalize">{u.work_orders?.[0]?.state ?? '—'}</td>
                     <td className="px-4 py-3 text-[12px] text-red-400 font-medium">−{u.quantity} {part.unit}</td>
                     <td className="px-4 py-3 text-[12px] text-text-primary">{formatCurrency(u.sale_price)}</td>
                     <td className="px-4 py-3 text-[11px] text-text-faint">{formatDateTime(u.created_at)}</td>
@@ -234,4 +228,9 @@ function Pagination({ page, totalPages, total, label, onPrev, onNext }: {
       </div>
     </div>
   )
+}
+
+import { Suspense } from 'react'
+export default function Page() {
+  return <Suspense><PartDetailPage /></Suspense>
 }

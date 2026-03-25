@@ -1,5 +1,5 @@
 'use client'
-import { useParams, useRouter } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { Topbar } from '@/components/layout/Topbar'
 import { InvoiceBadge } from '@/components/shared/StatusBadge'
@@ -23,8 +23,8 @@ const METHOD_LABELS: Record<PaymentMethod, string> = {
 
 const EDITABLE_STATUSES = new Set(['draft', 'issued', 'partial'])
 
-export default function BillingDetailPage() {
-  const { id } = useParams<{ id: string }>()
+function BillingDetailPage() {
+  const id = useSearchParams().get('id') ?? ''
   const router  = useRouter()
   const { activeWorkshop } = useWorkshopStore()
 
@@ -726,4 +726,9 @@ export default function BillingDetailPage() {
       )}
     </div>
   )
+}
+
+import { Suspense } from 'react'
+export default function Page() {
+  return <Suspense><BillingDetailPage /></Suspense>
 }

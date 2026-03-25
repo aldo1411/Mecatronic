@@ -215,7 +215,7 @@ export default function ServiceOrdersPage() {
                     </td>
                     <td className="px-4 py-3 text-[11px] text-text-faint">{formatDate(order.created_at)}</td>
                     <td className="px-4 py-3">
-                      <Link href={`/service-orders/${order.id}`} className="text-[11px] text-brand-300 hover:text-brand-200 transition-colors">
+                      <Link href={`/service-orders/detail?id=${order.id}`} className="text-[11px] text-brand-300 hover:text-brand-200 transition-colors">
                         Ver →
                       </Link>
                     </td>

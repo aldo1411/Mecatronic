@@ -50,7 +50,7 @@ function BillingPageContent() {
     createInvoice.mutate(
       { workOrderId, workshopId: activeWorkshop.id },
       {
-        onSuccess: (invoice) => router.replace(`/billing/${invoice.id}`),
+        onSuccess: (invoice) => router.replace(`/billing/detail?id=${invoice.id}`),
         onError:   () => toast.error('Error al crear cobro'),
       }
     )
@@ -146,7 +146,7 @@ function BillingPageContent() {
                     <td className="px-4 py-3"><InvoiceBadge status={inv.status} /></td>
                     <td className="px-4 py-3 text-[11px] text-text-faint">{formatDate(inv.created_at)}</td>
                     <td className="px-4 py-3">
-                      <Link href={`/billing/${inv.id}`} className="text-[11px] text-brand-300 hover:text-brand-200 transition-colors">
+                      <Link href={`/billing/detail?id=${inv.id}`} className="text-[11px] text-brand-300 hover:text-brand-200 transition-colors">
                         Ver →
                       </Link>
                     </td>

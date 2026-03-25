@@ -12,7 +12,7 @@ export default function InventoryValuationPage() {
 
   const totalCost  = (rows ?? []).reduce((acc, r) => acc + (r.quantity_on_hand * r.average_cost), 0)
   const totalSale  = (rows ?? []).reduce((acc, r) => {
-    const part = r.parts as { sale_price: number } | null
+    const part = (r.parts as unknown as { sale_price: number }[] | null)?.[0]
     return acc + (r.quantity_on_hand * (part?.sale_price ?? 0))
   }, 0)
   const totalMargin = totalSale > 0 ? ((totalSale - totalCost) / totalSale * 100).toFixed(1) : null
@@ -65,7 +65,7 @@ export default function InventoryValuationPage() {
               ) : !rows || rows.length === 0 ? (
                 <tr><td colSpan={8} className="px-4 py-8 text-center text-[12px] text-text-faint">Sin refacciones con stock</td></tr>
               ) : rows.map((r, i) => {
-                const part       = r.parts as { id: string; name: string; sku: string | null; unit: string; sale_price: number } | null
+                const part       = (r.parts as unknown as { id: string; name: string; sku: string | null; unit: string; sale_price: number }[] | null)?.[0]
                 const valueCost  = r.quantity_on_hand * r.average_cost
                 const valueSale  = r.quantity_on_hand * (part?.sale_price ?? 0)
                 const rowMargin  = part?.sale_price && r.average_cost > 0

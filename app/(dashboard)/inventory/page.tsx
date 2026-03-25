@@ -162,7 +162,7 @@ export default function InventoryPage() {
                 return (
                   <tr key={part.id} className="border-b border-surface-3/40 last:border-0 hover:bg-surface-2/50 transition-colors">
                     <td className="px-4 py-3">
-                      <Link href={`/inventory/${part.id}`} className="text-[12px] font-medium text-text-primary hover:text-brand-300 transition-colors">{part.name}</Link>
+                      <Link href={`/inventory/detail?id=${part.id}`} className="text-[12px] font-medium text-text-primary hover:text-brand-300 transition-colors">{part.name}</Link>
                       {part.sku && <p className="text-[10px] text-text-faint">SKU: {part.sku}</p>}
                     </td>
                     <td className="px-4 py-3">
