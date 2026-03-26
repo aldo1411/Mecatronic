@@ -73,6 +73,7 @@ export interface Vehicle {
 export interface HistoryNote {
   id: string
   vehicle_id: string
+  work_order_id: string | null
   notes: string | null
   photos: string[] | null
   kilometers: number | null

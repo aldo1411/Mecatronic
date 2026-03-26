@@ -41,7 +41,15 @@ export function useInvoiceBalance(invoiceId: string) {
 }
 
 export function useCreateInvoiceFromWorkOrder() {
-  return useMutation({ mutationFn: createInvoiceFromWorkOrder })
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: createInvoiceFromWorkOrder,
+    onSuccess: (invoice) => {
+      qc.invalidateQueries({ queryKey: ['invoice', invoice.id] })
+      qc.invalidateQueries({ queryKey: ['invoices'] })
+      qc.invalidateQueries({ queryKey: ['work-order'] })
+    },
+  })
 }
 
 export function useAddInvoiceItem() {
@@ -88,6 +96,9 @@ export function useCancelInvoice() {
     onSuccess: (_, invoiceId) => {
       qc.invalidateQueries({ queryKey: ['invoice', invoiceId] })
       qc.invalidateQueries({ queryKey: ['invoices'] })
+      qc.invalidateQueries({ queryKey: ['work-orders'] })
+      qc.invalidateQueries({ queryKey: ['work-order'] })
+      qc.invalidateQueries({ queryKey: ['parts'] })
     },
   })
 }
