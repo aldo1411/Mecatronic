@@ -1,5 +1,5 @@
 'use client'
-import { Suspense, useState, useEffect } from 'react'
+import { Suspense, useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { TableLoader, TableBackdrop } from '@/components/shared/Loader'
@@ -43,17 +43,18 @@ function BillingPageContent() {
   const totalPages = Math.ceil(total / INVOICES_PAGE_SIZE)
 
   const createInvoice = useCreateInvoiceFromWorkOrder()
+  const firedRef = useRef(false)
 
   // Auto-create invoice when coming from a work order
   useEffect(() => {
-    if (!workOrderId || !activeWorkshop || createInvoice.isPending || createInvoice.isSuccess) return
-    createInvoice.mutate(
-      { workOrderId, workshopId: activeWorkshop.id },
-      {
-        onSuccess: (invoice) => router.replace(`/billing/detail?id=${invoice.id}`),
-        onError:   () => toast.error('Error al crear cobro'),
-      }
-    )
+    if (!workOrderId || !activeWorkshop || firedRef.current) return
+    firedRef.current = true
+    createInvoice.mutateAsync({ workOrderId, workshopId: activeWorkshop.id })
+      .then(invoice => router.replace(`/billing/detail?id=${invoice.id}`))
+      .catch(() => {
+        firedRef.current = false
+        toast.error('Error al crear cobro')
+      })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workOrderId, activeWorkshop?.id])
 

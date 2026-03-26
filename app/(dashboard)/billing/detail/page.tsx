@@ -81,7 +81,10 @@ function BillingDetailPage() {
   const client   = invoice.profiles as { name: string; last_name: string } | undefined
   const wo       = invoice.work_orders as { folio: string } | undefined
   const payments = (invoice.payments ?? []) as { id: string; method: PaymentMethod; amount: number; paid_at: string; reference: string | null }[]
-  const items    = (invoice.invoice_items ?? []) as { id: string; description: string; quantity: number; unit_price: number; tax_amount: number; total: number; item_type: string }[]
+  const allItems = (invoice.invoice_items ?? []) as { id: string; description: string; quantity: number; unit_price: number; tax_amount: number; total: number; item_type: string; is_active: boolean }[]
+  const items    = invoice.status === 'cancelled'
+    ? allItems.filter(i => !i.is_active)
+    : allItems.filter(i => i.is_active)
   const canEdit  = EDITABLE_STATUSES.has(invoice.status)
 
   async function handleAddPayment(e: React.FormEvent) {

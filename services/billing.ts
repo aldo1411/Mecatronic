@@ -64,14 +64,60 @@ export async function createInvoiceFromWorkOrder(payload: {
 }) {
   const supabase = createClient()
 
-  // Return existing active invoice if one already exists for this work order
-  const { data: existing } = await supabase
+  // 1. Si existe un invoice activo, devolverlo directamente
+  const { data: active } = await supabase
     .from('invoices')
     .select('id')
     .eq('work_order_id', payload.workOrderId)
     .neq('status', 'cancelled')
     .maybeSingle()
-  if (existing) return existing
+  if (active) return active
+
+  // 2. Si existe un invoice cancelado, reactivarlo
+  const { data: cancelled } = await supabase
+    .from('invoices')
+    .select('id')
+    .eq('work_order_id', payload.workOrderId)
+    .eq('status', 'cancelled')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (cancelled) {
+    const { data: woParts } = await supabase
+      .from('work_order_parts')
+      .select('*, parts(name)')
+      .eq('work_order_id', payload.workOrderId)
+
+    const items = (woParts ?? []).map(p => ({
+      description:  p.parts?.name ?? 'Refacción',
+      quantity:     p.quantity,
+      unit_price:   p.sale_price,
+      tax_rate:     0.16,
+      item_type:    'part' as const,
+      reference_id: p.id,
+    }))
+
+    const subtotal  = items.reduce((s, i) => s + i.quantity * i.unit_price, 0)
+    const taxAmount = items.reduce((s, i) => s + i.quantity * i.unit_price * i.tax_rate, 0)
+
+    // Eliminar pagos anteriores (el invoice arranca limpio)
+    await supabase.from('payments').delete().eq('invoice_id', cancelled.id)
+
+    const { error: updError } = await supabase
+      .from('invoices')
+      .update({ status: 'issued', subtotal, tax_amount: taxAmount, issued_at: new Date().toISOString() })
+      .eq('id', cancelled.id)
+    if (updError) throw updError
+
+    if (items.length > 0) {
+      await supabase.from('invoice_items').insert(
+        items.map(i => ({ ...i, invoice_id: cancelled.id }))
+      )
+    }
+
+    return cancelled
+  }
 
   const { data: user } = await supabase.auth.getUser()
 
@@ -119,7 +165,20 @@ export async function createInvoiceFromWorkOrder(payload: {
     })
     .select()
     .single()
-  if (invError) throw invError
+
+  if (invError) {
+    // Unique constraint violation — concurrent request already created it
+    if (invError.code === '23505') {
+      const { data: fallback } = await supabase
+        .from('invoices')
+        .select('id')
+        .eq('work_order_id', payload.workOrderId)
+        .neq('status', 'cancelled')
+        .maybeSingle()
+      if (fallback) return fallback
+    }
+    throw invError
+  }
 
   if (items.length > 0) {
     await supabase.from('invoice_items').insert(
@@ -174,10 +233,7 @@ export async function deleteInvoiceItem(itemId: string) {
 
 export async function cancelInvoice(invoiceId: string) {
   const supabase = createClient()
-  const { error } = await supabase
-    .from('invoices')
-    .update({ status: 'cancelled' })
-    .eq('id', invoiceId)
+  const { error } = await supabase.rpc('cancel_invoice', { p_invoice_id: invoiceId })
   if (error) throw error
 }
 
