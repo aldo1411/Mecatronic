@@ -31,7 +31,14 @@ jobs:
       - name: Build (static export)
         run: npm run build
         env:
-          NEXT_BASE_PATH: /Mecatronic
+          NEXT_BASE_PATH: /Mecatronic/dev
           NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nextjs-out
+          path: ./out
+          retention-days: 1
