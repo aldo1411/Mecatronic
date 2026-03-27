@@ -25,48 +25,52 @@ const EDITABLE_STATUSES = new Set(['draft', 'issued', 'partial'])
 
 function BillingDetailPage() {
   const id = useSearchParams().get('id') ?? ''
-  const router  = useRouter()
+  const router = useRouter()
   const { activeWorkshop } = useWorkshopStore()
 
   const { data: invoice, isLoading } = useInvoice(id)
-  const { data: balance }            = useInvoiceBalance(id)
-  const { data: catalog }            = useServiceCatalog()
-  const [partSearch, setPartSearch]  = useState('')
-  const { data: partsData }          = useParts(partSearch || undefined)
-  const addPayment      = useAddPayment()
-  const generatePdf     = useGenerateReceiptPdf()
-  const addItem         = useAddInvoiceItem()
-  const updateItem      = useUpdateInvoiceItem()
-  const deleteItem      = useDeleteInvoiceItem()
-  const cancelInvoice   = useCancelInvoice()
+  const { data: balance } = useInvoiceBalance(id)
+  const { data: catalog } = useServiceCatalog()
+  const [partSearch, setPartSearch] = useState('')
+  const { data: partsData } = useParts(partSearch || undefined)
+  const addPayment = useAddPayment()
+  const generatePdf = useGenerateReceiptPdf()
+  const addItem = useAddInvoiceItem()
+  const updateItem = useUpdateInvoiceItem()
+  const deleteItem = useDeleteInvoiceItem()
+  const cancelInvoice = useCancelInvoice()
 
   // Payment form
-  const [amount, setAmount]       = useState('')
-  const [method, setMethod]       = useState<PaymentMethod>('cash')
+  const [amount, setAmount] = useState('')
+  const [method, setMethod] = useState<PaymentMethod>('cash')
   const [reference, setReference] = useState('')
 
   // Modals / editing
   const [showAddService, setShowAddService] = useState(false)
-  const [editingItem, setEditingItem]       = useState<{ id: string; quantity: string; unitPrice: string } | null>(null)
-  const [confirmCancel, setConfirmCancel]   = useState(false)
+  const [editingItem, setEditingItem] = useState<{ id: string; quantity: string; unitPrice: string } | null>(null)
+  const [confirmCancel, setConfirmCancel] = useState(false)
   const [confirmDeleteItem, setConfirmDeleteItem] = useState<string | null>(null)
 
   // Add-item modal
   const [addTab, setAddTab] = useState<'service' | 'part'>('service')
 
   // Service modal form
+  const [svcMode, setSvcMode]     = useState<'catalog' | 'custom'>('catalog')
   const [selectedService, setSelectedService] = useState<{ id: string; name: string; default_price: number; tax_rate: number } | null>(null)
   const [svcSearch, setSvcSearch] = useState('')
   const [svcPage, setSvcPage]     = useState(1)
+  const [customSvcDesc, setCustomSvcDesc]   = useState('')
+  const [customSvcPrice, setCustomSvcPrice] = useState('')
+  const [customSvcQty, setCustomSvcQty]     = useState('1')
 
   const SVC_PAGE_SIZE = 6
 
   // Part modal form
-  const [partMode, setPartMode]         = useState<'stock' | 'special'>('stock')
+  const [partMode, setPartMode] = useState<'stock' | 'special'>('stock')
   const [selectedPart, setSelectedPart] = useState<{ id: string; name: string; sale_price: number; stock: number } | null>(null)
-  const [partQty, setPartQty]           = useState('1')
-  const [partPrice, setPartPrice]       = useState('')
-  const [specialDesc, setSpecialDesc]   = useState('')
+  const [partQty, setPartQty] = useState('1')
+  const [partPrice, setPartPrice] = useState('')
+  const [specialDesc, setSpecialDesc] = useState('')
 
   // Pre-fill balance_due into amount when it loads
   useEffect(() => {
@@ -76,16 +80,16 @@ function BillingDetailPage() {
   }, [balance?.balance_due])
 
   if (isLoading) return <div className="flex items-center justify-center h-64"><Loader2 size={20} className="animate-spin text-text-muted" /></div>
-  if (!invoice)  return <div className="p-6 text-text-muted">Cobro no encontrado</div>
+  if (!invoice) return <div className="p-6 text-text-muted">Cobro no encontrado</div>
 
-  const client   = invoice.profiles as { name: string; last_name: string } | undefined
-  const wo       = invoice.work_orders as { folio: string } | undefined
+  const client = invoice.profiles as { name: string; last_name: string } | undefined
+  const wo = invoice.work_orders as { folio: string } | undefined
   const payments = (invoice.payments ?? []) as { id: string; method: PaymentMethod; amount: number; paid_at: string; reference: string | null }[]
   const allItems = (invoice.invoice_items ?? []) as { id: string; description: string; quantity: number; unit_price: number; tax_amount: number; total: number; item_type: string; is_active: boolean }[]
-  const items    = invoice.status === 'cancelled'
+  const items = invoice.status === 'cancelled'
     ? allItems.filter(i => !i.is_active)
     : allItems.filter(i => i.is_active)
-  const canEdit  = EDITABLE_STATUSES.has(invoice.status)
+  const canEdit = EDITABLE_STATUSES.has(invoice.status)
 
   async function handleAddPayment(e: React.FormEvent) {
     e.preventDefault()
@@ -98,14 +102,14 @@ function BillingDetailPage() {
       return
     }
     addPayment.mutate({
-      invoiceId:   id,
-      workshopId:  activeWorkshop.id,
-      amount:      parsed,
+      invoiceId: id,
+      workshopId: activeWorkshop.id,
+      amount: parsed,
       method,
-      reference:   reference || undefined,
+      reference: reference || undefined,
     }, {
       onSuccess: () => { setAmount(''); setReference('') },
-      onError:   (e) => toast.error('Error al registrar pago', e instanceof Error ? e.message : undefined),
+      onError: (e) => toast.error('Error al registrar pago', e instanceof Error ? e.message : undefined),
     })
   }
 
@@ -116,27 +120,31 @@ function BillingDetailPage() {
   function handleSaveItem() {
     if (!editingItem) return
     updateItem.mutate({
-      itemId:    editingItem.id,
-      quantity:  parseFloat(editingItem.quantity),
+      itemId: editingItem.id,
+      quantity: parseFloat(editingItem.quantity),
       unitPrice: parseFloat(editingItem.unitPrice),
     }, {
       onSuccess: () => setEditingItem(null),
-      onError:   (e) => toast.error('Error al guardar', e instanceof Error ? e.message : undefined),
+      onError: (e) => toast.error('Error al guardar', e instanceof Error ? e.message : undefined),
     })
   }
 
   function handleDeleteItem(itemId: string) {
     deleteItem.mutate(itemId, {
       onSuccess: () => { setConfirmDeleteItem(null); toast.success('Item eliminado') },
-      onError:   () => toast.error('Error al eliminar item'),
+      onError: () => toast.error('Error al eliminar item'),
     })
   }
 
   function openAddService() {
     setAddTab('service')
+    setSvcMode('catalog')
     setSelectedService(null)
     setSvcSearch('')
     setSvcPage(1)
+    setCustomSvcDesc('')
+    setCustomSvcPrice('')
+    setCustomSvcQty('1')
     setPartMode('stock')
     setSelectedPart(null)
     setPartSearch('')
@@ -151,15 +159,28 @@ function BillingDetailPage() {
   }
 
   function handleAddService() {
+    if (svcMode === 'custom') {
+      if (!customSvcDesc.trim()) return
+      addItem.mutate({
+        invoiceId:   id,
+        itemType:    'service',
+        referenceId: undefined,
+        description: customSvcDesc.trim(),
+        quantity:    parseFloat(customSvcQty) || 1,
+        unitPrice:   parseFloat(customSvcPrice) || 0,
+      }, {
+        onSuccess: () => { setShowAddService(false); toast.success('Servicio agregado') },
+      })
+      return
+    }
     if (!selectedService) return
     addItem.mutate({
-      invoiceId:   id,
-      itemType:    'service',
+      invoiceId: id,
+      itemType: 'service',
       referenceId: selectedService.id,
       description: selectedService.name,
-      quantity:    1,
-      unitPrice:   selectedService.default_price,
-      taxRate:     selectedService.tax_rate,
+      quantity: 1,
+      unitPrice: selectedService.default_price,
     }, {
       onSuccess: () => {
         setSelectedService(null)
@@ -178,26 +199,24 @@ function BillingDetailPage() {
         return
       }
       addItem.mutate({
-        invoiceId:   id,
-        itemType:    'part',
+        invoiceId: id,
+        itemType: 'part',
         referenceId: selectedPart.id,
         description: selectedPart.name,
-        quantity:    qty,
-        unitPrice:   selectedPart.sale_price,
-        taxRate:     0.16,
+        quantity: qty,
+        unitPrice: selectedPart.sale_price,
       }, {
         onSuccess: () => { setShowAddService(false); toast.success('Refacción agregada') },
       })
     } else {
       if (!specialDesc.trim()) return
       addItem.mutate({
-        invoiceId:   id,
-        itemType:    'part',
-        referenceId: undefined,   // no reference_id → special order, no stock impact
+        invoiceId: id,
+        itemType: 'part',
+        referenceId: undefined,
         description: specialDesc.trim(),
-        quantity:    qty,
-        unitPrice:   parseFloat(partPrice) || 0,
-        taxRate:     0.16,
+        quantity: qty,
+        unitPrice: parseFloat(partPrice) || 0,
       }, {
         onSuccess: () => { setShowAddService(false); toast.success('Pedido especial agregado') },
       })
@@ -207,7 +226,7 @@ function BillingDetailPage() {
   function handleCancel() {
     cancelInvoice.mutate(id, {
       onSuccess: () => { setConfirmCancel(false); toast.success('Cobro cancelado') },
-      onError:   () => toast.error('Error al cancelar'),
+      onError: () => toast.error('Error al cancelar'),
     })
   }
 
@@ -272,7 +291,7 @@ function BillingDetailPage() {
             <table className="w-full border-collapse">
               <thead>
                 <tr className="border-b border-surface-3/50">
-                  {['Descripción', 'Cant.', 'Precio unit.', 'IVA', 'Total', canEdit ? '' : null]
+                  {['Descripción', 'Cant.', 'Precio unit.', 'Total', canEdit ? '' : null]
                     .filter(Boolean)
                     .map(h => (
                       <th key={h as string} className="px-4 py-2 text-left text-[10px] text-text-faint uppercase tracking-wider font-medium">{h}</th>
@@ -281,7 +300,7 @@ function BillingDetailPage() {
               </thead>
               <tbody>
                 {items.length === 0 ? (
-                  <tr><td colSpan={canEdit ? 6 : 5} className="px-4 py-6 text-center text-[12px] text-text-faint">Sin items</td></tr>
+                  <tr><td colSpan={canEdit ? 5 : 4} className="px-4 py-6 text-center text-[12px] text-text-faint">Sin items</td></tr>
                 ) : items.map(item => {
                   const isEditing = editingItem?.id === item.id
                   return (
@@ -307,7 +326,6 @@ function BillingDetailPage() {
                           />
                         ) : formatCurrency(item.unit_price)}
                       </td>
-                      <td className="px-4 py-3 text-[12px] text-text-secondary">{formatCurrency(item.tax_amount)}</td>
                       <td className="px-4 py-3 text-[12px] font-medium text-text-primary">{formatCurrency(item.total)}</td>
                       {canEdit && (
                         <td className="px-4 py-3">
@@ -343,7 +361,7 @@ function BillingDetailPage() {
             </table>
             <div className="px-4 py-3 border-t border-surface-3 space-y-1.5">
               <div className="flex justify-between text-[12px] text-text-muted"><span>Subtotal</span><span>{formatCurrency(invoice.subtotal)}</span></div>
-              <div className="flex justify-between text-[12px] text-text-muted"><span>IVA 16%</span><span>{formatCurrency(invoice.tax_amount)}</span></div>
+              <div className="flex justify-between text-[12px] text-text-muted"><span>IVA {((activeWorkshop?.tax_rate ?? 0.16) * 100).toFixed(0)}%</span><span>{formatCurrency(invoice.tax_amount)}</span></div>
               <div className="flex justify-between text-[14px] font-medium text-text-primary pt-1.5 border-t border-surface-3"><span>Total</span><span>{formatCurrency(invoice.total)}</span></div>
             </div>
           </div>
@@ -473,11 +491,10 @@ function BillingDetailPage() {
                 <button
                   key={tab}
                   onClick={() => setAddTab(tab)}
-                  className={`flex-1 py-2.5 text-[12px] font-medium transition-colors ${
-                    addTab === tab
-                      ? 'text-brand-200 border-b-2 border-brand-400'
-                      : 'text-text-faint hover:text-text-muted'
-                  }`}
+                  className={`flex-1 py-2.5 text-[12px] font-medium transition-colors ${addTab === tab
+                    ? 'text-brand-200 border-b-2 border-brand-400'
+                    : 'text-text-faint hover:text-text-muted'
+                    }`}
                 >
                   {tab === 'service' ? 'Servicio' : 'Refacción'}
                 </button>
@@ -487,6 +504,55 @@ function BillingDetailPage() {
             <div className="p-5 space-y-4">
               {addTab === 'service' ? (
                 <>
+                  {/* Catalog / Custom toggle */}
+                  <div className="flex gap-1 p-1 bg-surface-2 rounded-lg">
+                    {(['catalog', 'custom'] as const).map(m => (
+                      <button
+                        key={m}
+                        onClick={() => { setSvcMode(m); setSelectedService(null); setSvcSearch(''); setSvcPage(1); setCustomSvcDesc(''); setCustomSvcPrice(''); setCustomSvcQty('1') }}
+                        className={`flex-1 py-1.5 text-[11px] font-medium rounded-md transition-colors ${svcMode === m ? 'bg-surface-0 text-text-primary shadow-sm' : 'text-text-faint hover:text-text-muted'}`}
+                      >
+                        {m === 'catalog' ? 'Del catálogo' : 'Personalizado'}
+                      </button>
+                    ))}
+                  </div>
+
+                  {svcMode === 'custom' ? (
+                    <>
+                      <div>
+                        <label className="block text-[10px] text-text-faint uppercase tracking-wider mb-1">Descripción</label>
+                        <input
+                          type="text"
+                          value={customSvcDesc}
+                          onChange={e => setCustomSvcDesc(e.target.value)}
+                          placeholder="Nombre del servicio"
+                          className="w-full bg-surface-2 border border-surface-3 rounded-lg px-3 py-2 text-[12px] text-text-primary outline-none focus:border-brand-400 transition-colors"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-[10px] text-text-faint uppercase tracking-wider mb-1">Cantidad</label>
+                          <input
+                            type="number" min="1" step="1"
+                            value={customSvcQty}
+                            onChange={e => setCustomSvcQty(e.target.value)}
+                            className="w-full bg-surface-2 border border-surface-3 rounded-lg px-3 py-2 text-[12px] text-text-primary outline-none focus:border-brand-400 transition-colors"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-text-faint uppercase tracking-wider mb-1">Precio unitario</label>
+                          <input
+                            type="number" min="0" step="0.01"
+                            value={customSvcPrice}
+                            onChange={e => setCustomSvcPrice(e.target.value)}
+                            placeholder="0.00"
+                            className="w-full bg-surface-2 border border-surface-3 rounded-lg px-3 py-2 text-[12px] text-text-primary outline-none focus:border-brand-400 transition-colors"
+                          />
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                  <>
                   {/* Search */}
                   <input
                     type="text"
@@ -498,13 +564,13 @@ function BillingDetailPage() {
                   {/* Service list */}
                   {(() => {
                     type SvcOption = { id: string; name: string; default_price: number; tax_rate: number }
-                    const all      = (catalog ?? []) as SvcOption[]
+                    const all = (catalog ?? []) as SvcOption[]
                     const filtered = svcSearch.trim()
                       ? all.filter(s => s.name.toLowerCase().includes(svcSearch.toLowerCase()))
                       : all
-                    const pages    = Math.ceil(filtered.length / SVC_PAGE_SIZE) || 1
-                    const page     = Math.min(svcPage, pages)
-                    const visible  = filtered.slice((page - 1) * SVC_PAGE_SIZE, page * SVC_PAGE_SIZE)
+                    const pages = Math.ceil(filtered.length / SVC_PAGE_SIZE) || 1
+                    const page = Math.min(svcPage, pages)
+                    const visible = filtered.slice((page - 1) * SVC_PAGE_SIZE, page * SVC_PAGE_SIZE)
                     return (
                       <>
                         <div className="space-y-1">
@@ -514,11 +580,10 @@ function BillingDetailPage() {
                             <button
                               key={s.id}
                               onClick={() => selectService(s)}
-                              className={`w-full text-left px-3 py-2 rounded-lg text-[12px] transition-colors ${
-                                selectedService?.id === s.id
-                                  ? 'bg-brand-500/30 text-brand-200 border border-brand-400/40'
-                                  : 'bg-surface-2 text-text-primary hover:bg-surface-3'
-                              }`}
+                              className={`w-full text-left px-3 py-2 rounded-lg text-[12px] transition-colors ${selectedService?.id === s.id
+                                ? 'bg-brand-500/30 text-brand-200 border border-brand-400/40'
+                                : 'bg-surface-2 text-text-primary hover:bg-surface-3'
+                                }`}
                             >
                               <span className="font-medium">{s.name}</span>
                               <span className="text-text-faint ml-2">{formatCurrency(s.default_price)}</span>
@@ -549,6 +614,8 @@ function BillingDetailPage() {
                       <span className="text-[13px] font-medium text-text-primary">{formatCurrency(selectedService.default_price)}</span>
                     </div>
                   )}
+                  </>
+                  )}
                 </>
               ) : (
                 <>
@@ -558,11 +625,10 @@ function BillingDetailPage() {
                       <button
                         key={m}
                         onClick={() => { setPartMode(m); setSelectedPart(null); setPartSearch(''); setPartQty('1'); setPartPrice(''); setSpecialDesc('') }}
-                        className={`flex-1 py-1.5 text-[11px] font-medium rounded-md transition-colors ${
-                          partMode === m
-                            ? 'bg-surface-0 text-text-primary shadow-sm'
-                            : 'text-text-faint hover:text-text-muted'
-                        }`}
+                        className={`flex-1 py-1.5 text-[11px] font-medium rounded-md transition-colors ${partMode === m
+                          ? 'bg-surface-0 text-text-primary shadow-sm'
+                          : 'text-text-faint hover:text-text-muted'
+                          }`}
                       >
                         {m === 'stock' ? 'Del inventario' : 'Pedido especial'}
                       </button>
@@ -584,19 +650,18 @@ function BillingDetailPage() {
                             <p className="text-[12px] text-text-faint text-center py-4">Sin refacciones encontradas</p>
                           ) : partsData.map(p => {
                             const stockQty = (p.inventory_stock as { quantity_on_hand: number }[] | null)?.[0]?.quantity_on_hand ?? 0
-                            const noStock  = stockQty <= 0
+                            const noStock = stockQty <= 0
                             return (
                               <button
                                 key={p.id}
                                 disabled={noStock}
                                 onClick={() => { setSelectedPart({ id: p.id, name: p.name, sale_price: p.sale_price, stock: stockQty }); setPartPrice(String(p.sale_price)) }}
-                                className={`w-full text-left px-3 py-2 rounded-lg text-[12px] transition-colors ${
-                                  selectedPart?.id === p.id
-                                    ? 'bg-brand-500/30 text-brand-200 border border-brand-400/40'
-                                    : noStock
-                                      ? 'bg-surface-2 text-text-faint opacity-50 cursor-not-allowed'
-                                      : 'bg-surface-2 text-text-primary hover:bg-surface-3'
-                                }`}
+                                className={`w-full text-left px-3 py-2 rounded-lg text-[12px] transition-colors ${selectedPart?.id === p.id
+                                  ? 'bg-brand-500/30 text-brand-200 border border-brand-400/40'
+                                  : noStock
+                                    ? 'bg-surface-2 text-text-faint opacity-50 cursor-not-allowed'
+                                    : 'bg-surface-2 text-text-primary hover:bg-surface-3'
+                                  }`}
                               >
                                 <span className="font-medium">{p.name}</span>
                                 {p.sku && <span className="text-text-faint ml-2 text-[10px]">{p.sku}</span>}
@@ -673,7 +738,11 @@ function BillingDetailPage() {
               <button onClick={() => setShowAddService(false)} className="px-4 py-2 text-[12px] text-text-muted hover:text-text-primary transition-colors">Cancelar</button>
               <button
                 onClick={addTab === 'service' ? handleAddService : handleAddPart}
-                disabled={addItem.isPending || (addTab === 'service' ? !selectedService : addTab === 'part' && partMode === 'stock' ? !selectedPart : !specialDesc.trim())}
+                disabled={addItem.isPending || (
+                  addTab === 'service'
+                    ? svcMode === 'custom' ? !customSvcDesc.trim() : !selectedService
+                    : partMode === 'stock' ? !selectedPart : !specialDesc.trim()
+                )}
                 className="flex items-center gap-1.5 bg-brand-400 hover:bg-brand-300 disabled:opacity-50 text-brand-100 px-4 py-2 rounded-lg text-[12px] font-medium transition-colors"
               >
                 {addItem.isPending && <Loader2 size={12} className="animate-spin" />}

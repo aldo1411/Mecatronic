@@ -59,6 +59,7 @@ export interface Database {
           name: string
           rfc: string | null
           subscription_status: SubscriptionStatus
+          tax_rate: number
           created_at: string
           updated_at: string
           is_active: boolean
