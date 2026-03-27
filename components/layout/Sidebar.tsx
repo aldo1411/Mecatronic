@@ -5,6 +5,7 @@ import { LayoutDashboard, ClipboardList, Package, Receipt, Users, Settings, Chev
 import { cn } from '@/lib/utils'
 import { useWorkshopStore } from '@/stores/workshop.store'
 import { useLowStockAlerts } from '@/hooks/useInventory'
+import { useSubscriptionSync } from '@/hooks/useSubscriptionSync'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
@@ -32,6 +33,7 @@ export function Sidebar() {
   const router = useRouter()
   const { activeWorkshop, activeRole, clearWorkshop } = useWorkshopStore()
   const { data: lowStock } = useLowStockAlerts()
+  useSubscriptionSync()
   const lowStockCount = lowStock?.length ?? 0
 
   async function handleLogout() {

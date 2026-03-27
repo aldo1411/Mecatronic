@@ -5,7 +5,7 @@ import { Topbar } from '@/components/layout/Topbar'
 import { InvoiceBadge } from '@/components/shared/StatusBadge'
 import {
   useInvoice, useInvoiceBalance, useAddPayment, useGenerateReceiptPdf,
-  useAddInvoiceItem, useUpdateInvoiceItem, useDeleteInvoiceItem,
+  useAddInvoiceItem, useDeleteInvoiceItem,
   useCancelInvoice, useServiceCatalog,
 } from '@/hooks/useBilling'
 import { useParts } from '@/hooks/useInventory'
@@ -13,7 +13,7 @@ import { formatCurrency, formatDateTime } from '@/lib/utils'
 import { useWorkshopStore } from '@/stores/workshop.store'
 import { toast } from '@/components/shared/Toast'
 import type { PaymentMethod } from '@/types/database'
-import { Loader2, FileText, Plus, Pencil, Trash2, Check, X, Ban } from 'lucide-react'
+import { Loader2, FileText, Plus, Trash2, X, Ban } from 'lucide-react'
 
 const METHOD_LABELS: Record<PaymentMethod, string> = {
   cash: 'Efectivo',
@@ -35,8 +35,7 @@ function BillingDetailPage() {
   const { data: partsData } = useParts(partSearch || undefined)
   const addPayment = useAddPayment()
   const generatePdf = useGenerateReceiptPdf()
-  const addItem = useAddInvoiceItem()
-  const updateItem = useUpdateInvoiceItem()
+  const addItem    = useAddInvoiceItem()
   const deleteItem = useDeleteInvoiceItem()
   const cancelInvoice = useCancelInvoice()
 
@@ -47,8 +46,7 @@ function BillingDetailPage() {
 
   // Modals / editing
   const [showAddService, setShowAddService] = useState(false)
-  const [editingItem, setEditingItem] = useState<{ id: string; quantity: string; unitPrice: string } | null>(null)
-  const [confirmCancel, setConfirmCancel] = useState(false)
+  const [confirmCancel, setConfirmCancel]   = useState(false)
   const [confirmDeleteItem, setConfirmDeleteItem] = useState<string | null>(null)
 
   // Add-item modal
@@ -56,7 +54,7 @@ function BillingDetailPage() {
 
   // Service modal form
   const [svcMode, setSvcMode]     = useState<'catalog' | 'custom'>('catalog')
-  const [selectedService, setSelectedService] = useState<{ id: string; name: string; default_price: number; tax_rate: number } | null>(null)
+  const [selectedService, setSelectedService] = useState<{ id: string; name: string; default_price: number } | null>(null)
   const [svcSearch, setSvcSearch] = useState('')
   const [svcPage, setSvcPage]     = useState(1)
   const [customSvcDesc, setCustomSvcDesc]   = useState('')
@@ -110,22 +108,6 @@ function BillingDetailPage() {
     }, {
       onSuccess: () => { setAmount(''); setReference('') },
       onError: (e) => toast.error('Error al registrar pago', e instanceof Error ? e.message : undefined),
-    })
-  }
-
-  function openEditItem(item: typeof items[0]) {
-    setEditingItem({ id: item.id, quantity: String(item.quantity), unitPrice: String(item.unit_price) })
-  }
-
-  function handleSaveItem() {
-    if (!editingItem) return
-    updateItem.mutate({
-      itemId: editingItem.id,
-      quantity: parseFloat(editingItem.quantity),
-      unitPrice: parseFloat(editingItem.unitPrice),
-    }, {
-      onSuccess: () => setEditingItem(null),
-      onError: (e) => toast.error('Error al guardar', e instanceof Error ? e.message : undefined),
     })
   }
 
@@ -291,72 +273,28 @@ function BillingDetailPage() {
             <table className="w-full border-collapse">
               <thead>
                 <tr className="border-b border-surface-3/50">
-                  {['Descripción', 'Cant.', 'Precio unit.', 'Total', canEdit ? '' : null]
-                    .filter(Boolean)
-                    .map(h => (
-                      <th key={h as string} className="px-4 py-2 text-left text-[10px] text-text-faint uppercase tracking-wider font-medium">{h}</th>
-                    ))}
+                  {['Descripción', 'Cant.', 'Precio unit.', canEdit ? '' : null].filter(Boolean).map(h => (
+                    <th key={h as string} className="px-4 py-2 text-left text-[10px] text-text-faint uppercase tracking-wider font-medium">{h}</th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
                 {items.length === 0 ? (
-                  <tr><td colSpan={canEdit ? 5 : 4} className="px-4 py-6 text-center text-[12px] text-text-faint">Sin items</td></tr>
-                ) : items.map(item => {
-                  const isEditing = editingItem?.id === item.id
-                  return (
-                    <tr key={item.id} className="border-b border-surface-3/30 last:border-0">
-                      <td className="px-4 py-3 text-[12px] text-text-primary">{item.description}</td>
-                      <td className="px-4 py-3 text-[12px] text-text-secondary">
-                        {isEditing ? (
-                          <input
-                            type="number" min="1" step="1"
-                            value={editingItem.quantity}
-                            onChange={e => setEditingItem(p => p && ({ ...p, quantity: e.target.value }))}
-                            className="w-16 bg-surface-2 border border-surface-3 rounded px-2 py-1 text-[12px] text-text-primary outline-none focus:border-brand-400"
-                          />
-                        ) : item.quantity}
+                  <tr><td colSpan={canEdit ? 4 : 3} className="px-4 py-6 text-center text-[12px] text-text-faint">Sin items</td></tr>
+                ) : items.map(item => (
+                  <tr key={item.id} className="border-b border-surface-3/30 last:border-0">
+                    <td className="px-4 py-3 text-[12px] text-text-primary">{item.description}</td>
+                    <td className="px-4 py-3 text-[12px] text-text-secondary">{item.quantity}</td>
+                    <td className="px-4 py-3 text-[12px] text-text-secondary">{formatCurrency(item.unit_price)}</td>
+                    {canEdit && (
+                      <td className="px-4 py-3">
+                        <button onClick={() => setConfirmDeleteItem(item.id)} className="p-1.5 text-text-faint hover:text-red-400 transition-colors rounded hover:bg-surface-2">
+                          <Trash2 size={11} />
+                        </button>
                       </td>
-                      <td className="px-4 py-3 text-[12px] text-text-secondary">
-                        {isEditing ? (
-                          <input
-                            type="number" min="0" step="0.01"
-                            value={editingItem.unitPrice}
-                            onChange={e => setEditingItem(p => p && ({ ...p, unitPrice: e.target.value }))}
-                            className="w-24 bg-surface-2 border border-surface-3 rounded px-2 py-1 text-[12px] text-text-primary outline-none focus:border-brand-400"
-                          />
-                        ) : formatCurrency(item.unit_price)}
-                      </td>
-                      <td className="px-4 py-3 text-[12px] font-medium text-text-primary">{formatCurrency(item.total)}</td>
-                      {canEdit && (
-                        <td className="px-4 py-3">
-                          {isEditing ? (
-                            <div className="flex items-center gap-1">
-                              <button
-                                onClick={handleSaveItem}
-                                disabled={updateItem.isPending}
-                                className="p-1 text-brand-300 hover:text-brand-200 transition-colors"
-                              >
-                                {updateItem.isPending ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
-                              </button>
-                              <button onClick={() => setEditingItem(null)} className="p-1 text-text-faint hover:text-text-muted transition-colors">
-                                <X size={12} />
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-1">
-                              <button onClick={() => openEditItem(item)} className="p-1.5 text-text-faint hover:text-text-primary transition-colors rounded hover:bg-surface-2">
-                                <Pencil size={11} />
-                              </button>
-                              <button onClick={() => setConfirmDeleteItem(item.id)} className="p-1.5 text-text-faint hover:text-red-400 transition-colors rounded hover:bg-surface-2">
-                                <Trash2 size={11} />
-                              </button>
-                            </div>
-                          )}
-                        </td>
-                      )}
-                    </tr>
-                  )
-                })}
+                    )}
+                  </tr>
+                ))}
               </tbody>
             </table>
             <div className="px-4 py-3 border-t border-surface-3 space-y-1.5">
@@ -563,7 +501,7 @@ function BillingDetailPage() {
                   />
                   {/* Service list */}
                   {(() => {
-                    type SvcOption = { id: string; name: string; default_price: number; tax_rate: number }
+                    type SvcOption = { id: string; name: string; default_price: number }
                     const all = (catalog ?? []) as SvcOption[]
                     const filtered = svcSearch.trim()
                       ? all.filter(s => s.name.toLowerCase().includes(svcSearch.toLowerCase()))

@@ -8,6 +8,7 @@ export async function getInvoices(params?: {
   dateFrom?: string
   dateTo?: string
   workshopId?: string
+  search?: string
 }) {
   const supabase = createClient()
   const page = params?.page ?? 1
@@ -16,7 +17,7 @@ export async function getInvoices(params?: {
 
   let query = supabase
     .from('invoices')
-    .select('*, profiles!invoices_client_id_fkey(name, last_name), work_orders(folio)', { count: 'exact' })
+    .select('*, profiles!invoices_client_id_fkey(id, name, last_name), work_orders(id, folio)', { count: 'exact' })
     .order('created_at', { ascending: false })
     .range(from, to)
 
@@ -24,6 +25,20 @@ export async function getInvoices(params?: {
   if (params?.status)     query = query.eq('status', params.status)
   if (params?.dateFrom)   query = query.gte('created_at', params.dateFrom)
   if (params?.dateTo)     query = query.lte('created_at', params.dateTo + 'T23:59:59')
+
+  if (params?.search) {
+    const s = `%${params.search}%`
+    const { data: matchingWOs } = await supabase
+      .from('work_orders')
+      .select('id')
+      .ilike('folio', s)
+    const woIds = (matchingWOs ?? []).map(wo => wo.id)
+    if (woIds.length > 0) {
+      query = query.or(`folio.ilike.${s},work_order_id.in.(${woIds.join(',')})`)
+    } else {
+      query = query.ilike('folio', s)
+    }
+  }
 
   const { data, error, count } = await query
   if (error) throw error
@@ -292,7 +307,7 @@ export async function getServiceCatalog(workshopId: string) {
   const supabase = createClient()
   const { data, error } = await supabase
     .from('service_catalog')
-    .select('*')
+    .select('id, name, description, default_price')
     .eq('workshop_id', workshopId)
     .eq('is_active', true)
     .order('name')

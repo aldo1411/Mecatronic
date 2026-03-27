@@ -6,18 +6,13 @@ import { useWorkshopStore } from '@/stores/workshop.store'
 import { createWorkOrder } from '@/services/work-orders'
 import { getClients, getVehiclesByClient, createVehicle, createClient_ } from '@/services/clients'
 import { useQuery, useMutation } from '@tanstack/react-query'
-import { ChevronLeft, Search, Plus, Loader2, Car, User, Wrench } from 'lucide-react'
+import { ChevronLeft, Search, Loader2, Car, User, Wrench } from 'lucide-react'
 import { toast } from '@/components/shared/Toast'
 import Link from 'next/link'
 import type { Profile, Vehicle } from '@/types/database'
 
 const CURRENT_YEAR = new Date().getFullYear()
-const YEARS = Array.from({ length: 25 }, (_, i) => CURRENT_YEAR - i)
 
-const CAR_BRANDS = [
-  'Chevrolet','Chrysler','Ford','Honda','Hyundai','Kia','Mazda',
-  'Nissan','Peugeot','Seat','Suzuki','Toyota','Volkswagen','Otro'
-]
 
 type Step = 'client' | 'vehicle' | 'details'
 
@@ -28,8 +23,8 @@ export default function NewServiceOrderPage() {
   const [clientSearch, setClientSearch] = useState('')
   const [selectedClient, setSelectedClient] = useState<Profile | null>(null)
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null)
-  const [showNewClient, setShowNewClient] = useState(false)
-  const [showNewVehicle, setShowNewVehicle] = useState(false)
+  const [clientMode, setClientMode] = useState<'select' | 'new'>('select')
+  const [vehicleMode, setVehicleMode] = useState<'select' | 'new'>('select')
 
   // New client form
   const [newClient, setNewClient] = useState({ name: '', lastName: '', secondLastName: '', rfc: '', phone: '', email: '' })
@@ -57,7 +52,7 @@ export default function NewServiceOrderPage() {
     onError: () => toast.error('Error al crear la orden de servicio'),
   })
 
-  const filteredClients = (clients ?? []).filter(c => {
+  const filteredClients = (clients?.data ?? []).filter(c => {
     if (!clientSearch) return true
     const s = clientSearch.toLowerCase()
     return `${c.name} ${c.last_name}`.toLowerCase().includes(s)
@@ -75,7 +70,7 @@ export default function NewServiceOrderPage() {
         workshopId: activeWorkshop!.id,
       })
       setSelectedClient(client)
-      setShowNewClient(false)
+      setClientMode('select')
       setStep('vehicle')
     } catch (e) {
       toast.error('No se pudo registrar el cliente', e instanceof Error ? e.message : undefined)
@@ -90,7 +85,7 @@ export default function NewServiceOrderPage() {
       year: parseInt(newVehicle.year),
     })
     setSelectedVehicle(vehicle)
-    setShowNewVehicle(false)
+    setVehicleMode('select')
     setStep('details')
   }
 
@@ -159,15 +154,22 @@ export default function NewServiceOrderPage() {
                 <h2 className="text-[14px] font-medium text-text-primary">Seleccionar cliente</h2>
                 <p className="text-[12px] text-text-muted mt-0.5">Busca un cliente existente o crea uno nuevo</p>
               </div>
-              <button
-                onClick={() => setShowNewClient(!showNewClient)}
-                className="flex items-center gap-1.5 text-[12px] text-brand-300 hover:text-brand-200 transition-colors"
-              >
-                <Plus size={13} /> Nuevo cliente
-              </button>
+              <div className="flex gap-1 p-1 bg-surface-2 rounded-lg">
+                {(['select', 'new'] as const).map(m => (
+                  <button
+                    key={m}
+                    onClick={() => setClientMode(m)}
+                    className={`px-3 py-1 text-[11px] font-medium rounded-md transition-colors ${
+                      clientMode === m ? 'bg-surface-0 text-text-primary shadow-sm' : 'text-text-faint hover:text-text-muted'
+                    }`}
+                  >
+                    {m === 'select' ? 'Seleccionar cliente' : 'Nuevo cliente'}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            {showNewClient ? (
+            {clientMode === 'new' ? (
               <div className="p-5 space-y-3">
                 <p className="text-[12px] font-medium text-text-secondary mb-3">Datos del nuevo cliente</p>
                 <div className="grid grid-cols-2 gap-3">
@@ -199,7 +201,7 @@ export default function NewServiceOrderPage() {
                     {createClientMutation.isPending && <Loader2 size={12} className="animate-spin" />}
                     Crear cliente
                   </button>
-                  <button onClick={() => setShowNewClient(false)} className="px-4 py-2 text-[12px] text-text-muted hover:text-text-primary transition-colors">
+                  <button onClick={() => setClientMode('select')} className="px-4 py-2 text-[12px] text-text-muted hover:text-text-primary transition-colors">
                     Cancelar
                   </button>
                 </div>
@@ -256,27 +258,32 @@ export default function NewServiceOrderPage() {
                   <h2 className="text-[14px] font-medium text-text-primary">Seleccionar vehículo</h2>
                   <p className="text-[12px] text-text-muted mt-0.5">Vehículos registrados o agrega uno nuevo</p>
                 </div>
-                <button
-                  onClick={() => setShowNewVehicle(!showNewVehicle)}
-                  className="flex items-center gap-1.5 text-[12px] text-brand-300 hover:text-brand-200 transition-colors"
-                >
-                  <Plus size={13} /> Nuevo vehículo
-                </button>
+                <div className="flex gap-1 p-1 bg-surface-2 rounded-lg">
+                  {(['select', 'new'] as const).map(m => (
+                    <button
+                      key={m}
+                      onClick={() => setVehicleMode(m)}
+                      className={`px-3 py-1 text-[11px] font-medium rounded-md transition-colors ${
+                        vehicleMode === m ? 'bg-surface-0 text-text-primary shadow-sm' : 'text-text-faint hover:text-text-muted'
+                      }`}
+                    >
+                      {m === 'select' ? 'Seleccionar vehículo' : 'Nuevo vehículo'}
+                    </button>
+                  ))}
+                </div>
               </div>
 
-              {showNewVehicle ? (
+              {vehicleMode === 'new' ? (
                 <div className="p-5 space-y-3">
                   <div className="grid grid-cols-3 gap-3">
                     <div>
                       <label className="block text-[10px] text-text-faint uppercase tracking-wider mb-1">Marca *</label>
-                      <select
+                      <input
                         value={newVehicle.brand}
                         onChange={e => setNewVehicle(p => ({ ...p, brand: e.target.value }))}
-                        className="w-full bg-surface-2 border border-surface-3 rounded-lg px-3 py-2 text-[12px] text-text-primary outline-none focus:border-brand-400 transition-colors"
-                      >
-                        <option value="">Seleccionar</option>
-                        {CAR_BRANDS.map(b => <option key={b} value={b}>{b}</option>)}
-                      </select>
+                        placeholder="Ford, Nissan..."
+                        className="w-full bg-surface-2 border border-surface-3 rounded-lg px-3 py-2 text-[12px] text-text-primary placeholder:text-text-faint outline-none focus:border-brand-400 transition-colors"
+                      />
                     </div>
                     <div>
                       <label className="block text-[10px] text-text-faint uppercase tracking-wider mb-1">Modelo *</label>
@@ -289,13 +296,15 @@ export default function NewServiceOrderPage() {
                     </div>
                     <div>
                       <label className="block text-[10px] text-text-faint uppercase tracking-wider mb-1">Año *</label>
-                      <select
+                      <input
+                        type="number"
+                        min="1900"
+                        max={CURRENT_YEAR}
                         value={newVehicle.year}
                         onChange={e => setNewVehicle(p => ({ ...p, year: e.target.value }))}
-                        className="w-full bg-surface-2 border border-surface-3 rounded-lg px-3 py-2 text-[12px] text-text-primary outline-none focus:border-brand-400 transition-colors"
-                      >
-                        {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
-                      </select>
+                        placeholder={String(CURRENT_YEAR)}
+                        className="w-full bg-surface-2 border border-surface-3 rounded-lg px-3 py-2 text-[12px] text-text-primary placeholder:text-text-faint outline-none focus:border-brand-400 transition-colors"
+                      />
                     </div>
                   </div>
                   <div className="flex gap-2 pt-2">
@@ -307,7 +316,7 @@ export default function NewServiceOrderPage() {
                       {createVehicleMutation.isPending && <Loader2 size={12} className="animate-spin" />}
                       Registrar vehículo
                     </button>
-                    <button onClick={() => setShowNewVehicle(false)} className="px-4 py-2 text-[12px] text-text-muted hover:text-text-primary transition-colors">Cancelar</button>
+                    <button onClick={() => setVehicleMode('select')} className="px-4 py-2 text-[12px] text-text-muted hover:text-text-primary transition-colors">Cancelar</button>
                   </div>
                 </div>
               ) : (
@@ -315,7 +324,7 @@ export default function NewServiceOrderPage() {
                   {!vehicles || vehicles.length === 0 ? (
                     <div className="text-center py-6">
                       <p className="text-[12px] text-text-faint">Este cliente no tiene vehículos registrados.</p>
-                      <button onClick={() => setShowNewVehicle(true)} className="mt-2 text-[12px] text-brand-300 hover:text-brand-200 transition-colors">
+                      <button onClick={() => setVehicleMode('new')} className="mt-2 text-[12px] text-brand-300 hover:text-brand-200 transition-colors">
                         + Registrar primer vehículo
                       </button>
                     </div>
