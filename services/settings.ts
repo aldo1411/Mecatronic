@@ -10,13 +10,14 @@ export interface WorkshopSettings {
   phone: string | null
   address: string | null
   logo_url: string | null
+  tax_rate: number
 }
 
 export async function getWorkshop(workshopId: string): Promise<WorkshopSettings> {
   const supabase = createClient()
   const { data, error } = await supabase
     .from('workshops')
-    .select('id, name, rfc, phone, address, logo_url')
+    .select('id, name, rfc, phone, address, logo_url, tax_rate')
     .eq('id', workshopId)
     .single()
   if (error) throw error
@@ -25,7 +26,7 @@ export async function getWorkshop(workshopId: string): Promise<WorkshopSettings>
 
 export async function updateWorkshop(
   workshopId: string,
-  payload: Partial<Pick<WorkshopSettings, 'name' | 'rfc' | 'phone' | 'address' | 'logo_url'>>
+  payload: Partial<Pick<WorkshopSettings, 'name' | 'rfc' | 'phone' | 'address' | 'logo_url' | 'tax_rate'>>
 ): Promise<void> {
   const supabase = createClient()
   const { error } = await supabase

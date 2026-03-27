@@ -98,7 +98,7 @@ export async function getWorkOrders(params?: {
     .from('work_orders')
     .select(`
       *,
-      profiles!work_orders_client_id_fkey(name, last_name),
+      profiles!work_orders_client_id_fkey(id, name, last_name),
       vehicles(brand, model, year),
       mechanics:profiles!work_orders_mechanic_id_fkey(name, last_name),
       invoices(status, total)
@@ -128,7 +128,7 @@ export async function getWorkOrder(id: string) {
       history_notes!history_notes_work_order_id_fkey(id),
       mechanics:profiles!work_orders_mechanic_id_fkey(id, name, last_name),
       work_order_parts(*, parts(name, sku, unit)),
-      invoices(id, status, total, payments(amount), invoice_items(id, description, quantity, unit_price, item_type, tax_amount, total))
+      invoices(id, status, total, payments(amount), invoice_items(id, description, quantity, unit_price, item_type, tax_amount, total, is_active))
     `)
     .eq('id', id)
     .single()

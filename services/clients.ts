@@ -1,15 +1,44 @@
 import { createClient } from '@/lib/supabase/client'
 import { parseDbError } from '@/lib/supabase/errors'
 
-export async function getClients(workshopId: string) {
-  const supabase = createClient()
-  const { data, error } = await supabase
+export const CLIENTS_PAGE_SIZE = 20
+
+export async function getClients(workshopId: string, params?: { search?: string; page?: number }) {
+  const supabase  = createClient()
+  const page      = params?.page ?? 1
+  const pageSize  = CLIENTS_PAGE_SIZE
+  const from      = (page - 1) * pageSize
+  const to        = from + pageSize - 1
+  const search    = params?.search?.trim()
+
+  let query = supabase
     .from('profiles')
-    .select('*, contacts(*)')
+    .select('*, contacts(*)', { count: 'exact' })
     .eq('is_active', true)
     .order('last_name')
+    .range(from, to)
+
+  if (search) {
+    const s = `%${search}%`
+    // Buscar perfiles cuyo teléfono coincida para incluirlos vía OR
+    const { data: contactMatches } = await supabase
+      .from('contacts')
+      .select('user_id')
+      .eq('contact_type', 'phone')
+      .ilike('contact', s)
+    const phoneIds = (contactMatches ?? []).map(c => c.user_id as string)
+
+    const nameFiler = `name.ilike.${s},last_name.ilike.${s},rfc.ilike.${s}`
+    if (phoneIds.length > 0) {
+      query = query.or(`${nameFiler},id.in.(${phoneIds.join(',')})`)
+    } else {
+      query = query.or(nameFiler)
+    }
+  }
+
+  const { data, error, count } = await query
   if (error) throw error
-  return data ?? []
+  return { data: data ?? [], total: count ?? 0 }
 }
 
 export async function createClient_(payload: {
@@ -68,16 +97,12 @@ export async function createVehicle(payload: {
   year: number
 }) {
   const supabase = createClient()
-  const { data, error } = await supabase
-    .from('vehicles')
-    .insert({
-      client_id: payload.clientId,
-      brand: payload.brand,
-      model: payload.model,
-      year: payload.year,
-    })
-    .select()
-    .single()
+  const { data, error } = await supabase.rpc('add_vehicle', {
+    p_client_id: payload.clientId,
+    p_brand:     payload.brand,
+    p_model:     payload.model,
+    p_year:      payload.year,
+  })
   if (error) throw error
-  return data
+  return (data as any[])[0]
 }

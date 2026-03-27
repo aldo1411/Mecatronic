@@ -192,7 +192,7 @@ export default function ServiceOrdersPage() {
                   </td>
                 </tr>
               ) : filtered.map(order => {
-                const client   = order.profiles  as { name: string; last_name: string } | undefined
+                const client   = order.profiles  as { id: string; name: string; last_name: string } | undefined
                 const vehicle  = order.vehicles   as { brand: string; model: string; year: number } | undefined
                 const mechanic = order.mechanics  as { name: string; last_name: string } | undefined
                 return (
@@ -203,8 +203,10 @@ export default function ServiceOrdersPage() {
                         {vehicle ? `${vehicle.brand} ${vehicle.model} ${vehicle.year}` : '—'}
                       </p>
                     </td>
-                    <td className="px-4 py-3 text-[12px] text-text-secondary">
-                      {client ? `${client.name} ${client.last_name}` : '—'}
+                    <td className="px-4 py-3 text-[12px]">
+                      {client
+                        ? <Link href={`/clients/detail?id=${client.id}`} className="text-text-secondary hover:text-brand-200 transition-colors">{client.name} {client.last_name}</Link>
+                        : <span className="text-text-faint">—</span>}
                     </td>
                     <td className="px-4 py-3 text-[12px] text-text-muted">
                       {mechanic ? `${mechanic.name} ${mechanic.last_name}` : '—'}

@@ -17,6 +17,7 @@ export function useInvoices(params?: {
   dateFrom?: string
   dateTo?: string
   workshopId?: string
+  search?: string
 }) {
   return useQuery({
     queryKey: ['invoices', params],

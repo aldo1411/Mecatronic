@@ -33,17 +33,18 @@ function WorkshopTab({ workshopId }: { workshopId: string }) {
   const uploadLogo = useUploadWorkshopLogo(workshopId)
   const fileRef = useRef<HTMLInputElement>(null)
 
-  const [form, setForm] = useState({ name: '', rfc: '', phone: '', address: '' })
+  const [form, setForm] = useState({ name: '', rfc: '', phone: '', address: '', taxRate: '' })
   const [initialized, setInitialized] = useState(false)
 
   if (ws && !initialized) {
-    setForm({ name: ws.name, rfc: ws.rfc ?? '', phone: ws.phone ?? '', address: ws.address ?? '' })
+    setForm({ name: ws.name, rfc: ws.rfc ?? '', phone: ws.phone ?? '', address: ws.address ?? '', taxRate: String(ws.tax_rate * 100) })
     setInitialized(true)
   }
 
   function handleSave() {
+    const taxRateNum = parseFloat(form.taxRate)
     update.mutate(
-      { name: form.name, rfc: form.rfc || null, phone: form.phone || null, address: form.address || null },
+      { name: form.name, rfc: form.rfc || null, phone: form.phone || null, address: form.address || null, tax_rate: !isNaN(taxRateNum) ? taxRateNum / 100 : undefined },
       {
         onSuccess: () => toast.success('Cambios guardados'),
         onError: (e) => toast.error('Error al guardar', e instanceof Error ? e.message : undefined),
@@ -100,6 +101,23 @@ function WorkshopTab({ workshopId }: { workshopId: string }) {
         <Field label="RFC" value={form.rfc} onChange={v => setForm(p => ({ ...p, rfc: v }))} placeholder="TAL123456ABC" />
         <Field label="Teléfono" value={form.phone} onChange={v => setForm(p => ({ ...p, phone: v }))} placeholder="81 1234 5678" />
         <Field label="Dirección" value={form.address} onChange={v => setForm(p => ({ ...p, address: v }))} placeholder="Av. Constitución 100, Monterrey, NL" />
+        <div>
+          <label className="block text-[10px] text-text-faint uppercase tracking-wider mb-1">IVA (%)</label>
+          <div className="relative">
+            <input
+              type="number"
+              min="0"
+              max="100"
+              step="0.01"
+              value={form.taxRate}
+              onChange={e => setForm(p => ({ ...p, taxRate: e.target.value }))}
+              placeholder="16"
+              className="w-full bg-surface-2 border border-surface-3 rounded-lg px-3 py-2 pr-8 text-[12px] text-text-primary placeholder:text-text-faint outline-none focus:border-brand-400 transition-colors"
+            />
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[12px] text-text-faint">%</span>
+          </div>
+          <p className="text-[10px] text-text-faint mt-1">Se aplica al calcular el total de las órdenes de cobro</p>
+        </div>
       </div>
 
       <button

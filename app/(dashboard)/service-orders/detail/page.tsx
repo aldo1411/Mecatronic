@@ -1,5 +1,5 @@
 'use client'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useState, useRef, useMemo } from 'react'
 import { Topbar } from '@/components/layout/Topbar'
@@ -13,7 +13,7 @@ import {
   useCancelWorkOrder, useAddHistoryNote,
 } from '@/hooks/useWorkOrders'
 import { useParts } from '@/hooks/useInventory'
-import { useServiceCatalog } from '@/hooks/useBilling'
+import { useServiceCatalog, useCreateInvoiceFromWorkOrder } from '@/hooks/useBilling'
 import { useWorkshopStore } from '@/stores/workshop.store'
 import { toast } from '@/components/shared/Toast'
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/utils'
@@ -190,7 +190,7 @@ type PartOption = {
   id: string; name: string; sku: string | null; unit: string; sale_price: number
   inventory_stock: { quantity_on_hand: number; average_cost: number }[] | null
 }
-type ServiceOption = { id: string; name: string; default_price: number; tax_rate: number }
+type ServiceOption = { id: string; name: string; default_price: number }
 
 const ORIGIN_OPTIONS: { value: 'stock' | 'special_order' | 'client_provided'; label: string }[] = [
   { value: 'stock',           label: 'Inventario' },
@@ -607,6 +607,7 @@ function AddHistoryNoteModal({
 
 function ServiceOrderDetailPage() {
   const id = useSearchParams().get('id') ?? ''
+  const router = useRouter()
   const { activeWorkshop }   = useWorkshopStore()
   const { data: order, isLoading } = useWorkOrder(id)
   const updateState    = useUpdateWorkOrderState()
@@ -614,6 +615,7 @@ function ServiceOrderDetailPage() {
   const { data: mechanics } = useWorkshopMechanics()
   const uploadPhoto  = useUploadWorkOrderPhoto(id, activeWorkshop?.id ?? '')
   const deletePhoto  = useDeleteWorkOrderPhoto(id)
+  const createInvoice = useCreateInvoiceFromWorkOrder()
 
   const cancelOrder  = useCancelWorkOrder()
 
@@ -686,6 +688,16 @@ function ServiceOrderDetailPage() {
       { id: order!.id, state: transition.next },
       { onSuccess: () => toast.success('Estado actualizado', `La orden pasó a "${transition.label}"`) },
     )
+  }
+
+  async function handleCobrar() {
+    if (!activeWorkshop) return
+    try {
+      const invoice = await createInvoice.mutateAsync({ workOrderId: order!.id, workshopId: activeWorkshop.id })
+      router.push(`/billing/detail?id=${invoice.id}`)
+    } catch {
+      toast.error('Error al generar cobro')
+    }
   }
 
   async function handleCancelOrder() {
@@ -766,12 +778,14 @@ function ServiceOrderDetailPage() {
               </button>
             )}
             {order.state === 'ready' && hasWorkOrderNote && (
-              <Link
-                href={hasInvoice ? `/billing/detail?id=${activeInvoice!.id}` : `/billing?workOrderId=${order.id}`}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-950 border border-emerald-800 hover:bg-emerald-900 text-emerald-400 rounded-lg text-[12px] font-medium transition-colors"
+              <button
+                onClick={handleCobrar}
+                disabled={createInvoice.isPending}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-950 border border-emerald-800 hover:bg-emerald-900 disabled:opacity-50 text-emerald-400 rounded-lg text-[12px] font-medium transition-colors"
               >
-                <Banknote size={13} /> Cobrar
-              </Link>
+                {createInvoice.isPending ? <Loader2 size={13} className="animate-spin" /> : <Banknote size={13} />}
+                Cobrar
+              </button>
             )}
             {transition && transition.next !== 'delivered' && (
               <button
@@ -888,9 +902,9 @@ function ServiceOrderDetailPage() {
             <div className="bg-surface-0 border border-surface-3 rounded-xl overflow-hidden">
               <div className="px-4 py-3 border-b border-surface-3 flex items-center justify-between">
                 <p className="text-[11px] font-medium text-text-faint uppercase tracking-wider">Refacciones y servicios</p>
-                {order.state !== 'cancelled' && (
+                {hasInvoice && (
                   <Link
-                    href={hasInvoice ? `/billing/detail?id=${activeInvoice!.id}` : `/billing?workOrderId=${order.id}`}
+                    href={`/billing/detail?id=${activeInvoice!.id}`}
                     className="flex items-center gap-1 text-[11px] text-brand-300 hover:text-brand-200 transition-colors"
                   >
                     Gestionar en cobro →
