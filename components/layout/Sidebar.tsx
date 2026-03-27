@@ -9,21 +9,23 @@ import { useSubscriptionSync } from '@/hooks/useSubscriptionSync'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
-const NAV = [
+const BILLING_ROLES = ['owner', 'admin', 'receptionist', 'superadmin']
+
+const NAV: { label: string; href: string | null; icon: typeof LayoutDashboard | null; section: string | null; roles?: string[] }[] = [
   { label: 'Dashboard',             href: '/',                    icon: LayoutDashboard, section: null },
   { label: 'Órdenes de servicio',   href: '/service-orders',      icon: ClipboardList,   section: null },
-  { label: 'Inventario',            href: null,                   icon: null,            section: 'Inventario' },
-  { label: 'Refacciones',           href: '/inventory',                icon: Package, section: null },
-  { label: 'Entradas',              href: '/inventory/entries',        icon: null,    section: null },
-  { label: 'Ajustes',               href: '/inventory/adjustments',    icon: null,    section: null },
-  { label: 'Proveedores',           href: '/inventory/suppliers',      icon: null,    section: null },
-  { label: 'Valuación',             href: '/inventory/valuation',      icon: null,    section: null },
-  { label: 'Cobro',                 href: null,                   icon: null,            section: 'Cobro' },
-  { label: 'Cobros',                href: '/billing',             icon: Receipt,         section: null },
-  { label: 'Caja',                  href: '/billing/cash',        icon: null,            section: null },
-  { label: 'Catálogo servicios',    href: '/billing/catalog',     icon: null,            section: null },
-  { label: 'Clientes',              href: null,                   icon: null,            section: 'Clientes' },
-  { label: 'Clientes',              href: '/clients',             icon: Users,           section: null },
+  { label: 'Inventario',            href: null,                   icon: null,            section: 'Inventario', roles: BILLING_ROLES },
+  { label: 'Refacciones',           href: '/inventory',                icon: Package, section: null,       roles: BILLING_ROLES },
+  { label: 'Entradas',              href: '/inventory/entries',        icon: null,    section: null,       roles: BILLING_ROLES },
+  { label: 'Ajustes',               href: '/inventory/adjustments',    icon: null,    section: null,       roles: BILLING_ROLES },
+  { label: 'Proveedores',           href: '/inventory/suppliers',      icon: null,    section: null,       roles: BILLING_ROLES },
+  { label: 'Valuación',             href: '/inventory/valuation',      icon: null,    section: null,       roles: BILLING_ROLES },
+  { label: 'Cobro',                 href: null,                   icon: null,            section: 'Cobro',    roles: BILLING_ROLES },
+  { label: 'Cobros',                href: '/billing',             icon: Receipt,         section: null,       roles: BILLING_ROLES },
+  { label: 'Caja',                  href: '/billing/cash',        icon: null,            section: null,       roles: BILLING_ROLES },
+  { label: 'Catálogo servicios',    href: '/billing/catalog',     icon: null,            section: null,       roles: BILLING_ROLES },
+  { label: 'Clientes',              href: null,                   icon: null,            section: 'Clientes', roles: BILLING_ROLES },
+  { label: 'Clientes',              href: '/clients',             icon: Users,           section: null,       roles: BILLING_ROLES },
   { label: 'Configuración',         href: null,                   icon: null,            section: 'Sistema' },
   { label: 'Configuración',         href: '/settings',            icon: Settings,        section: null },
 ]
@@ -71,7 +73,7 @@ export function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 py-2 overflow-y-auto">
-        {NAV.map((item, idx) => {
+        {NAV.filter(item => !item.roles || (activeRole && item.roles.includes(activeRole))).map((item, idx) => {
           if (item.section !== null && item.href === null) {
             return (
               <div key={`section-${idx}`} className="px-4 pt-4 pb-1">

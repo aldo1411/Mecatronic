@@ -80,11 +80,12 @@ export type SortField = 'created_at' | 'folio'
 export type SortDir   = 'asc' | 'desc'
 
 export async function getWorkOrders(params?: {
-  state?:    WorkOrderState
-  page?:     number
-  pageSize?: number
-  sortField?: SortField
-  sortDir?:   SortDir
+  state?:        WorkOrderState
+  page?:         number
+  pageSize?:     number
+  sortField?:    SortField
+  sortDir?:      SortDir
+  assignedToMe?: boolean
 }) {
   const supabase  = createClient()
   const page      = params?.page      ?? 1
@@ -110,6 +111,11 @@ export async function getWorkOrders(params?: {
     query = query.eq('state', params.state)
   } else {
     query = query.eq('is_active', true)
+  }
+
+  if (params?.assignedToMe) {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) query = query.eq('mechanic_id', user.id)
   }
 
   const { data, error, count } = await query
@@ -208,14 +214,11 @@ export async function updateWorkOrderState(id: string, state: WorkOrderState) {
 
 export async function updateWorkOrderMechanic(id: string, mechanicId: string) {
   const supabase = createClient()
-  const { data, error } = await supabase
-    .from('work_orders')
-    .update({ mechanic_id: mechanicId })
-    .eq('id', id)
-    .select()
-    .single()
+  const { error } = await supabase.rpc('set_work_order_mechanic', {
+    p_work_order_id: id,
+    p_mechanic_id:   mechanicId,
+  })
   if (error) throw error
-  return data
 }
 
 export async function recalculateWorkOrderTotal(workOrderId: string) {

@@ -8,7 +8,7 @@ import { TableLoader, TableBackdrop } from '@/components/shared/Loader'
 import { useWorkOrders, PAGE_SIZE, type SortField, type SortDir } from '@/hooks/useWorkOrders'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import type { WorkOrderState } from '@/types/database'
-import { Plus, Search, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react'
+import { Plus, Search, ArrowUp, ArrowDown, ArrowUpDown, UserCheck } from 'lucide-react'
 
 const STATES: { value: WorkOrderState | 'all'; label: string }[] = [
   { value: 'all',          label: 'Todas' },
@@ -37,12 +37,14 @@ export default function ServiceOrdersPage() {
   const [search, setSearch]           = useState('')
   const [page, setPage]               = useState(1)
   const [sort, setSort]               = useState<SortState>({ field: 'created_at', dir: 'desc' })
+  const [assignedToMe, setAssignedToMe] = useState(false)
 
   const { data: result, isLoading, isFetching } = useWorkOrders({
-    state:     activeState !== 'all' ? activeState : undefined,
+    state:        activeState !== 'all' ? activeState : undefined,
     page,
-    sortField: sort.field,
-    sortDir:   sort.dir,
+    sortField:    sort.field,
+    sortDir:      sort.dir,
+    assignedToMe,
   })
 
   const orders = result?.data ?? []
@@ -64,6 +66,11 @@ export default function ServiceOrdersPage() {
 
   function handleStateChange(state: WorkOrderState | 'all') {
     setActiveState(state)
+    setPage(1)
+  }
+
+  function handleAssignedToMe() {
+    setAssignedToMe(p => !p)
     setPage(1)
   }
 
@@ -126,6 +133,17 @@ export default function ServiceOrdersPage() {
                 {s.label}
               </button>
             ))}
+            <button
+              onClick={handleAssignedToMe}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] border transition-colors ${
+                assignedToMe
+                  ? 'bg-brand-500/30 text-brand-200 border-brand-400'
+                  : 'bg-transparent text-text-muted border-surface-3 hover:border-surface-2'
+              }`}
+            >
+              <UserCheck size={11} />
+              Asignadas a mí
+            </button>
           </div>
 
           {/* Sort indicator */}

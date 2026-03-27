@@ -608,7 +608,8 @@ function AddHistoryNoteModal({
 function ServiceOrderDetailPage() {
   const id = useSearchParams().get('id') ?? ''
   const router = useRouter()
-  const { activeWorkshop }   = useWorkshopStore()
+  const { activeWorkshop, activeRole } = useWorkshopStore()
+  const isMechanic = activeRole === 'mechanic'
   const { data: order, isLoading } = useWorkOrder(id)
   const updateState    = useUpdateWorkOrderState()
   const updateMechanic = useUpdateWorkOrderMechanic()
@@ -758,7 +759,7 @@ function ServiceOrderDetailPage() {
             <Link href="/service-orders" className="flex items-center gap-1 px-3 py-1.5 text-[12px] text-text-muted hover:text-text-primary transition-colors">
               <ChevronLeft size={13} /> Volver
             </Link>
-            {order.state !== 'cancelled' && order.state !== 'delivered' && (
+            {!isMechanic && order.state !== 'cancelled' && order.state !== 'delivered' && (
               <button
                 onClick={() => setConfirmCancel(true)}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-red-950 border border-red-800 hover:bg-red-900 text-red-400 rounded-lg text-[12px] transition-colors"
@@ -777,7 +778,7 @@ function ServiceOrderDetailPage() {
                 <NotebookPen size={13} /> Agregar historial
               </button>
             )}
-            {order.state === 'ready' && hasWorkOrderNote && (
+            {!isMechanic && order.state === 'ready' && hasWorkOrderNote && (
               <button
                 onClick={handleCobrar}
                 disabled={createInvoice.isPending}
@@ -902,7 +903,7 @@ function ServiceOrderDetailPage() {
             <div className="bg-surface-0 border border-surface-3 rounded-xl overflow-hidden">
               <div className="px-4 py-3 border-b border-surface-3 flex items-center justify-between">
                 <p className="text-[11px] font-medium text-text-faint uppercase tracking-wider">Refacciones y servicios</p>
-                {hasInvoice && (
+                {!isMechanic && hasInvoice && (
                   <Link
                     href={`/billing/detail?id=${activeInvoice!.id}`}
                     className="flex items-center gap-1 text-[11px] text-brand-300 hover:text-brand-200 transition-colors"
@@ -986,12 +987,14 @@ function ServiceOrderDetailPage() {
             <div className="bg-surface-0 border border-surface-3 rounded-xl overflow-hidden">
               <div className="px-4 py-3 border-b border-surface-3 flex items-center justify-between">
                 <p className="text-[11px] font-medium text-text-faint uppercase tracking-wider">Mecánico</p>
-                <button
-                  onClick={() => setShowMechanicPicker(!showMechanicPicker)}
-                  className="text-[11px] text-brand-300 hover:text-brand-200 transition-colors"
-                >
-                  {showMechanicPicker ? 'Cancelar' : 'Cambiar'}
-                </button>
+                {!isMechanic && (
+                  <button
+                    onClick={() => setShowMechanicPicker(!showMechanicPicker)}
+                    className="text-[11px] text-brand-300 hover:text-brand-200 transition-colors"
+                  >
+                    {showMechanicPicker ? 'Cancelar' : 'Cambiar'}
+                  </button>
+                )}
               </div>
               <div className="p-4">
                 {mechanic ? (
