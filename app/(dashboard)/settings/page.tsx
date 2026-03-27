@@ -13,6 +13,9 @@ import { cn } from '@/lib/utils'
 
 type Tab = 'workshop' | 'profile' | 'team'
 
+const TEAM_ROLES = ['owner', 'admin', 'receptionist', 'superadmin']
+const OWNER_ROLES = ['owner', 'superadmin']
+
 const ROLE_LABELS: Record<string, string> = {
   owner:         'Propietario',
   admin:         'Administrador',
@@ -27,7 +30,7 @@ function initials(name: string, lastName: string) {
 
 // ─── Tab: Datos del taller ────────────────────────────────────────────────────
 
-function WorkshopTab({ workshopId }: { workshopId: string }) {
+function WorkshopTab({ workshopId, canEdit }: { workshopId: string; canEdit: boolean }) {
   const { data: ws, isLoading } = useWorkshop(workshopId)
   const update = useUpdateWorkshop(workshopId)
   const uploadLogo = useUploadWorkshopLogo(workshopId)
@@ -120,14 +123,18 @@ function WorkshopTab({ workshopId }: { workshopId: string }) {
         </div>
       </div>
 
-      <button
-        onClick={handleSave}
-        disabled={!form.name || update.isPending}
-        className="flex items-center gap-1.5 bg-brand-400 hover:bg-brand-300 disabled:opacity-50 text-brand-100 px-4 py-2 rounded-lg text-[12px] font-medium transition-colors"
-      >
-        {update.isPending && <Loader2 size={12} className="animate-spin" />}
-        Guardar cambios
-      </button>
+      {canEdit ? (
+        <button
+          onClick={handleSave}
+          disabled={!form.name || update.isPending}
+          className="flex items-center gap-1.5 bg-brand-400 hover:bg-brand-300 disabled:opacity-50 text-brand-100 px-4 py-2 rounded-lg text-[12px] font-medium transition-colors"
+        >
+          {update.isPending && <Loader2 size={12} className="animate-spin" />}
+          Guardar cambios
+        </button>
+      ) : (
+        <p className="text-[11px] text-text-faint">Solo el propietario puede editar los datos del taller.</p>
+      )}
     </div>
   )
 }
@@ -434,15 +441,18 @@ function SectionLoader() {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-const TABS: { id: Tab; label: string }[] = [
+const ALL_TABS: { id: Tab; label: string; roles?: string[] }[] = [
   { id: 'workshop', label: 'Taller' },
   { id: 'profile',  label: 'Mi perfil' },
-  { id: 'team',     label: 'Equipo' },
+  { id: 'team',     label: 'Equipo', roles: TEAM_ROLES },
 ]
 
 export default function SettingsPage() {
-  const { activeWorkshop } = useWorkshopStore()
+  const { activeWorkshop, activeRole } = useWorkshopStore()
   const [tab, setTab] = useState<Tab>('workshop')
+
+  const canEditWorkshop = !!activeRole && OWNER_ROLES.includes(activeRole)
+  const tabs = ALL_TABS.filter(t => !t.roles || (activeRole && t.roles.includes(activeRole)))
 
   return (
     <div>
@@ -450,7 +460,7 @@ export default function SettingsPage() {
       <div className="p-6">
         {/* Tab nav */}
         <div className="flex gap-1 mb-6 border-b border-surface-3">
-          {TABS.map(t => (
+          {tabs.map(t => (
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
@@ -467,7 +477,7 @@ export default function SettingsPage() {
         </div>
 
         {/* Tab content */}
-        {tab === 'workshop' && activeWorkshop && <WorkshopTab workshopId={activeWorkshop.id} />}
+        {tab === 'workshop' && activeWorkshop && <WorkshopTab workshopId={activeWorkshop.id} canEdit={canEditWorkshop} />}
         {tab === 'profile'  && <ProfileTab />}
         {tab === 'team'     && activeWorkshop && <TeamTab workshopId={activeWorkshop.id} />}
       </div>

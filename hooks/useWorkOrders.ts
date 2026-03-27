@@ -14,10 +14,11 @@ import type { WorkOrderState } from '@/types/database'
 export type { SortField, SortDir }
 
 export function useWorkOrders(params?: {
-  state?:     WorkOrderState
-  page?:      number
-  sortField?: SortField
-  sortDir?:   SortDir
+  state?:        WorkOrderState
+  page?:         number
+  sortField?:    SortField
+  sortDir?:      SortDir
+  assignedToMe?: boolean
 }) {
   return useQuery({
     queryKey: ['work-orders', params],
