@@ -1,6 +1,45 @@
+'use client'
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Sidebar } from '@/components/layout/Sidebar'
+import { createClient } from '@/lib/supabase/client'
+import { useWorkshopStore } from '@/stores/workshop.store'
+import { Loader2 } from 'lucide-react'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const router = useRouter()
+  const { activeWorkshop } = useWorkshopStore()
+  const [checking, setChecking] = useState(true)
+
+  useEffect(() => {
+    async function check() {
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+
+      if (!session) {
+        router.replace('/login')
+        return
+      }
+
+      if (!activeWorkshop) {
+        router.replace('/select-workshop')
+        return
+      }
+
+      setChecking(false)
+    }
+
+    check()
+  }, [])
+
+  if (checking) {
+    return (
+      <div className="min-h-screen bg-surface-1 flex items-center justify-center">
+        <Loader2 size={20} className="animate-spin text-brand-300" />
+      </div>
+    )
+  }
+
   return (
     <div className="flex h-screen overflow-hidden bg-surface-1">
       <Sidebar />
