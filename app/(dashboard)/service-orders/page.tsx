@@ -211,7 +211,11 @@ export default function ServiceOrdersPage() {
                     </td>
                     <td className="px-4 py-3"><WorkOrderBadge state={order.state} /></td>
                     <td className="px-4 py-3 text-[12px] font-medium text-text-primary">
-                      {order.total_cost > 0 ? formatCurrency(order.total_cost) : '—'}
+                      {(() => {
+                        const inv = ((order.invoices ?? []) as { status: string; total: number }[])
+                          .find(i => i.status !== 'cancelled')
+                        return inv && inv.total > 0 ? formatCurrency(inv.total) : '—'
+                      })()}
                     </td>
                     <td className="px-4 py-3 text-[11px] text-text-faint">{formatDate(order.created_at)}</td>
                     <td className="px-4 py-3">

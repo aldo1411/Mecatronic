@@ -100,7 +100,8 @@ export async function getWorkOrders(params?: {
       *,
       profiles!work_orders_client_id_fkey(name, last_name),
       vehicles(brand, model, year),
-      mechanics:profiles!work_orders_mechanic_id_fkey(name, last_name)
+      mechanics:profiles!work_orders_mechanic_id_fkey(name, last_name),
+      invoices(status, total)
     `, { count: 'exact' })
     .order(sortField, { ascending: sortDir === 'asc' })
     .range(from, to)

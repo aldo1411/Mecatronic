@@ -83,6 +83,14 @@ export async function createInvoiceFromWorkOrder(payload: {
     .limit(1)
     .maybeSingle()
 
+  // Fetch workshop tax_rate
+  const { data: workshop } = await supabase
+    .from('workshops')
+    .select('tax_rate')
+    .eq('id', payload.workshopId)
+    .single()
+  const taxRate = workshop?.tax_rate ?? 0.16
+
   if (cancelled) {
     const { data: woParts } = await supabase
       .from('work_order_parts')
@@ -93,13 +101,13 @@ export async function createInvoiceFromWorkOrder(payload: {
       description:  p.parts?.name ?? 'Refacción',
       quantity:     p.quantity,
       unit_price:   p.sale_price,
-      tax_rate:     0.16,
+      tax_rate:     taxRate,
       item_type:    'part' as const,
       reference_id: p.id,
     }))
 
     const subtotal  = items.reduce((s, i) => s + i.quantity * i.unit_price, 0)
-    const taxAmount = items.reduce((s, i) => s + i.quantity * i.unit_price * i.tax_rate, 0)
+    const taxAmount = subtotal * taxRate
 
     // Eliminar pagos anteriores (el invoice arranca limpio)
     await supabase.from('payments').delete().eq('invoice_id', cancelled.id)
@@ -142,13 +150,13 @@ export async function createInvoiceFromWorkOrder(payload: {
     description:  p.parts?.name ?? 'Refacción',
     quantity:     p.quantity,
     unit_price:   p.sale_price,
-    tax_rate:     0.16,
+    tax_rate:     taxRate,
     item_type:    'part' as const,
     reference_id: p.id,
   }))
 
   const subtotal  = items.reduce((s, i) => s + i.quantity * i.unit_price, 0)
-  const taxAmount = items.reduce((s, i) => s + i.quantity * i.unit_price * i.tax_rate, 0)
+  const taxAmount = subtotal * taxRate
 
   const { data: invoice, error: invError } = await supabase
     .from('invoices')
@@ -196,7 +204,6 @@ export async function addInvoiceItem(payload: {
   description: string
   quantity: number
   unitPrice: number
-  taxRate: number
 }) {
   const supabase = createClient()
   const { error } = await supabase.rpc('add_invoice_item', {
@@ -206,7 +213,7 @@ export async function addInvoiceItem(payload: {
     p_description:  payload.description,
     p_quantity:     payload.quantity,
     p_unit_price:   payload.unitPrice,
-    p_tax_rate:     payload.taxRate,
+    p_tax_rate:     null,
   })
   if (error) throw new Error(error.message)
 }
