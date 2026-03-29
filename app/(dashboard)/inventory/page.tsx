@@ -89,9 +89,9 @@ export default function InventoryPage() {
       <Topbar
         title="Inventario de refacciones"
         actions={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Link href="/inventory/entries" className="px-3 py-1.5 bg-surface-2 border border-surface-3 rounded-lg text-[12px] text-text-muted hover:text-text-primary transition-colors">
-              + Entrada de inventario
+              + Entrada
             </Link>
             <Link href="/inventory/new-part" className="flex items-center gap-1.5 bg-brand-400 hover:bg-brand-300 text-brand-100 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors">
               <Plus size={13} /> Nueva refacción
@@ -100,7 +100,7 @@ export default function InventoryPage() {
         }
       />
 
-      <div className="p-6">
+      <div className="p-4 md:p-6">
         {alertCount > 0 && (
           <div className="bg-amber-950/50 border border-amber-900/50 rounded-xl px-4 py-3 mb-5 flex items-center gap-3">
             <AlertTriangle size={15} className="text-amber-400 flex-shrink-0" />
@@ -111,14 +111,14 @@ export default function InventoryPage() {
           </div>
         )}
 
-        <div className="flex items-center gap-3 mb-5 flex-wrap">
-          <div className="relative">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-5 flex-wrap">
+          <div className="relative w-full sm:w-auto">
             <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-faint" />
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Buscar por nombre, SKU..."
-              className="bg-surface-0 border border-surface-3 rounded-lg pl-8 pr-3 py-1.5 text-[12px] text-text-primary placeholder:text-text-faint outline-none focus:border-brand-400 transition-colors w-[240px]"
+              className="bg-surface-0 border border-surface-3 rounded-lg pl-8 pr-3 py-1.5 text-[12px] text-text-primary placeholder:text-text-faint outline-none focus:border-brand-400 transition-colors w-full sm:w-[240px]"
             />
           </div>
           {(['all','low','critical'] as const).map(f => (
@@ -138,7 +138,8 @@ export default function InventoryPage() {
 
         <div className="relative bg-surface-0 border border-surface-3 rounded-xl overflow-hidden">
           <TableBackdrop visible={isFetching && !isLoading} />
-          <table className="w-full border-collapse">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[600px] border-collapse">
             <thead>
               <tr className="border-b border-surface-3">
                 {['Refacción', 'Inventario actual', 'Mínimo', 'Costo prom.', 'Precio venta', 'Margen', ''].map(h => (
@@ -209,6 +210,7 @@ export default function InventoryPage() {
               })}
             </tbody>
           </table>
+          </div>
         </div>
       </div>
 
@@ -236,7 +238,7 @@ export default function InventoryPage() {
                   />
                 </div>
               ))}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[10px] text-text-faint uppercase tracking-wider mb-1">Unidad *</label>
                   <select

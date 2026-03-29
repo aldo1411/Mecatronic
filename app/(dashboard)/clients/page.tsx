@@ -52,7 +52,7 @@ export default function ClientsPage() {
         }
       />
 
-      <div className="p-6">
+      <div className="p-4 md:p-6">
         <div className="relative mb-5 max-w-sm">
           <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-faint" />
           <input
@@ -77,7 +77,8 @@ export default function ClientsPage() {
               )}
             </div>
           ) : (
-            <table className="w-full border-collapse">
+            <div className="overflow-x-auto">
+            <table className="w-full min-w-[500px] border-collapse">
               <thead>
                 <tr className="border-b border-surface-3">
                   {['Cliente', 'RFC', 'Contacto', 'Órdenes', ''].map(h => (
@@ -115,6 +116,7 @@ export default function ClientsPage() {
                 })}
               </tbody>
             </table>
+            </div>
           )}
           <Pagination page={page} pageSize={CLIENTS_PAGE_SIZE} total={total} onPageChange={setPage} />
         </div>
@@ -131,7 +133,7 @@ export default function ClientsPage() {
               </button>
             </div>
             <div className="p-5 space-y-3">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {[
                   { label: 'Nombre *', key: 'name', placeholder: 'Juan' },
                   { label: 'Apellido paterno *', key: 'lastName', placeholder: 'García' },

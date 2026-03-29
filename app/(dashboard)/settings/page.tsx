@@ -193,7 +193,7 @@ function ProfileTab() {
       {/* Nombre */}
       <div className="space-y-4">
         <p className="text-[11px] text-text-faint uppercase tracking-wider">Información personal</p>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label="Nombre *" value={form.name} onChange={v => setForm(p => ({ ...p, name: v }))} placeholder="Juan" />
           <Field label="Apellido paterno *" value={form.last_name} onChange={v => setForm(p => ({ ...p, last_name: v }))} placeholder="García" />
           <div className="col-span-2">
@@ -329,7 +329,7 @@ function TeamTab({ workshopId }: { workshopId: string }) {
             </div>
             <div className="p-5 space-y-3">
               <Field label="Correo electrónico *" value={inviteForm.email} onChange={v => setInviteForm(p => ({ ...p, email: v }))} placeholder="nombre@correo.com" type="email" />
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Field label="Nombre *" value={inviteForm.name} onChange={v => setInviteForm(p => ({ ...p, name: v }))} placeholder="Juan" />
                 <Field label="Apellido *" value={inviteForm.last_name} onChange={v => setInviteForm(p => ({ ...p, last_name: v }))} placeholder="García" />
               </div>
@@ -457,7 +457,7 @@ export default function SettingsPage() {
   return (
     <div>
       <Topbar title="Configuración" />
-      <div className="p-6">
+      <div className="p-4 md:p-6">
         {/* Tab nav */}
         <div className="flex gap-1 mb-6 border-b border-surface-3">
           {tabs.map(t => (

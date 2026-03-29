@@ -50,7 +50,7 @@ export default function NewPartPage() {
           <ChevronLeft size={13} /> Volver
         </Link>
       } />
-      <div className="p-6 max-w-xl">
+      <div className="p-4 md:p-6 max-w-xl">
         <div className="bg-surface-0 border border-surface-3 rounded-xl overflow-hidden">
           <div className="px-5 py-4 border-b border-surface-3">
             <h2 className="text-[14px] font-medium text-text-primary">Datos de la refacción</h2>
@@ -64,7 +64,7 @@ export default function NewPartPage() {
               <label className="block text-[10px] text-text-faint uppercase tracking-wider mb-1">Descripción</label>
               <textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} placeholder="Descripción opcional..." rows={2} className="w-full bg-surface-2 border border-surface-3 rounded-lg px-3 py-2 text-[12px] text-text-primary placeholder:text-text-faint outline-none focus:border-brand-400 transition-colors resize-none" />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-[10px] text-text-faint uppercase tracking-wider mb-1">SKU / Código</label>
                 <input value={form.sku} onChange={e => setForm(p => ({ ...p, sku: e.target.value }))} placeholder="FIL-TOY-001" className="w-full bg-surface-2 border border-surface-3 rounded-lg px-3 py-2 text-[12px] text-text-primary placeholder:text-text-faint outline-none focus:border-brand-400 transition-colors" />

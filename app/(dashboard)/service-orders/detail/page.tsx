@@ -755,7 +755,7 @@ function ServiceOrderDetailPage() {
         title={order.folio}
         subtitle={`Creada ${formatDateTime(order.created_at)}`}
         actions={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2 justify-end">
             <Link href="/service-orders" className="flex items-center gap-1 px-3 py-1.5 text-[12px] text-text-muted hover:text-text-primary transition-colors">
               <ChevronLeft size={13} /> Volver
             </Link>
@@ -803,18 +803,18 @@ function ServiceOrderDetailPage() {
       />
 
       {/* Status bar */}
-      <div className="px-6 py-2.5 border-b border-surface-3 bg-surface-0 flex items-center gap-3">
+      <div className="px-4 md:px-6 py-2.5 border-b border-surface-3 bg-surface-0 flex flex-wrap items-center gap-2 md:gap-3">
         <WorkOrderBadge state={order.state} />
-        <span className="text-text-faint text-[11px]">·</span>
+        <span className="text-text-faint text-[11px] hidden sm:inline">·</span>
         <span className="text-[12px] text-text-faint">Entrega est. {formatDate(order.estimated_delivery)}</span>
-        <span className="text-text-faint text-[11px]">·</span>
-        <span className="text-[12px] font-mono text-text-faint">{order.folio}</span>
+        <span className="text-text-faint text-[11px] hidden sm:inline">·</span>
+        <span className="text-[12px] font-mono text-text-faint hidden sm:inline">{order.folio}</span>
       </div>
 
-      <div className="p-6">
-        <div className="grid grid-cols-3 gap-4">
+      <div className="p-4 md:p-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Main */}
-          <div className="col-span-2 space-y-4">
+          <div className="lg:col-span-2 space-y-4">
             {/* Vehicle & client */}
             <div className="bg-surface-0 border border-surface-3 rounded-xl overflow-hidden">
               <div className="px-4 py-3 border-b border-surface-3 flex items-center justify-between">
@@ -912,7 +912,8 @@ function ServiceOrderDetailPage() {
                   </Link>
                 )}
               </div>
-              <table className="w-full border-collapse">
+              <div className="overflow-x-auto">
+              <table className="w-full min-w-[400px] border-collapse">
                 <thead>
                   <tr className="border-b border-surface-3/50">
                     {['Descripción', showFromInvoice ? 'Tipo' : 'Origen', 'Cant.', 'Precio unit.', 'Total'].map(h => (
@@ -959,6 +960,7 @@ function ServiceOrderDetailPage() {
                   )}
                 </tbody>
               </table>
+              </div>
               <div className="px-4 py-3 border-t border-surface-3 space-y-1.5">
                 {showFromInvoice ? (
                   <>

@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Sidebar } from '@/components/layout/Sidebar'
+import { NavigationLoader } from '@/components/layout/NavigationLoader'
 import { createClient } from '@/lib/supabase/client'
 import { useWorkshopStore } from '@/stores/workshop.store'
 import { Loader2 } from 'lucide-react'
@@ -42,8 +43,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex h-screen overflow-hidden bg-surface-1">
+      <NavigationLoader />
       <Sidebar />
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 overflow-y-auto min-w-0">
         {children}
       </main>
     </div>
