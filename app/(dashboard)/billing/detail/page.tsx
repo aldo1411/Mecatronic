@@ -255,8 +255,8 @@ function BillingDetailPage() {
         <span className="text-[12px] text-text-faint">Emitido {formatDateTime(invoice.created_at)}</span>
       </div>
 
-      <div className="p-6 grid grid-cols-3 gap-4">
-        <div className="col-span-2 space-y-4">
+      <div className="p-4 md:p-6 grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2 space-y-4">
           {/* Items */}
           <div className="bg-surface-0 border border-surface-3 rounded-xl overflow-hidden">
             <div className="px-4 py-3 border-b border-surface-3 flex items-center justify-between">
@@ -270,7 +270,8 @@ function BillingDetailPage() {
                 </button>
               )}
             </div>
-            <table className="w-full border-collapse">
+            <div className="overflow-x-auto">
+            <table className="w-full min-w-[360px] border-collapse">
               <thead>
                 <tr className="border-b border-surface-3/50">
                   {['Descripción', 'Cant.', 'Precio unit.', canEdit ? '' : null].filter(Boolean).map(h => (
@@ -297,6 +298,7 @@ function BillingDetailPage() {
                 ))}
               </tbody>
             </table>
+            </div>
             <div className="px-4 py-3 border-t border-surface-3 space-y-1.5">
               <div className="flex justify-between text-[12px] text-text-muted"><span>Subtotal</span><span>{formatCurrency(invoice.subtotal)}</span></div>
               <div className="flex justify-between text-[12px] text-text-muted"><span>IVA {((activeWorkshop?.tax_rate ?? 0.16) * 100).toFixed(0)}%</span><span>{formatCurrency(invoice.tax_amount)}</span></div>

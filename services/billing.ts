@@ -315,13 +315,22 @@ export async function getServiceCatalog(workshopId: string) {
   return data ?? []
 }
 
-export async function getDailyCashSummary(workshopId: string) {
+export const CASH_PAGE_SIZE = 20
+
+export async function getDailyCashSummary(workshopId: string, params?: { from?: string; to?: string; page?: number }) {
   const supabase = createClient()
-  const { data, error } = await supabase
+  const page = params?.page ?? 1
+  const from = (page - 1) * CASH_PAGE_SIZE
+  const to   = from + CASH_PAGE_SIZE - 1
+  let query = supabase
     .from('daily_cash_summary')
-    .select('*')
+    .select('*', { count: 'exact' })
     .eq('workshop_id', workshopId)
     .order('day', { ascending: false })
+    .range(from, to)
+  if (params?.from) query = query.gte('day', params.from)
+  if (params?.to)   query = query.lte('day', params.to)
+  const { data, error, count } = await query
   if (error) throw error
-  return data ?? []
+  return { data: data ?? [], total: count ?? 0 }
 }

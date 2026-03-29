@@ -80,19 +80,19 @@ function BillingPageContent() {
         subtitle={`${total} cobros registrados`}
       />
 
-      <div className="p-6 space-y-4">
+      <div className="p-4 md:p-6 space-y-4">
         {/* Filters */}
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative">
+        <div className="flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-2">
+          <div className="relative w-full sm:w-auto">
             <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-faint" />
             <input
               value={search}
               onChange={e => { setSearch(e.target.value); setPage(1) }}
               placeholder="Buscar por folio o N° de OS..."
-              className="bg-surface-0 border border-surface-3 rounded-lg pl-8 pr-3 py-1.5 text-[12px] text-text-primary placeholder:text-text-faint outline-none focus:border-brand-400 transition-colors w-[260px]"
+              className="bg-surface-0 border border-surface-3 rounded-lg pl-8 pr-3 py-1.5 text-[12px] text-text-primary placeholder:text-text-faint outline-none focus:border-brand-400 transition-colors w-full sm:w-[260px]"
             />
           </div>
-          <div className="flex gap-1">
+          <div className="flex gap-1 flex-wrap">
             {STATUS_FILTERS.map(f => (
               <button
                 key={f.value}
@@ -107,7 +107,7 @@ function BillingPageContent() {
               </button>
             ))}
           </div>
-          <div className="flex items-center gap-2 ml-2">
+          <div className="flex flex-wrap items-center gap-2">
             <input
               type="date"
               value={dateFrom}
@@ -131,12 +131,17 @@ function BillingPageContent() {
 
         <div className="relative bg-surface-0 border border-surface-3 rounded-xl overflow-hidden">
           <TableBackdrop visible={isFetching && !isLoading} />
-          <table className="w-full border-collapse">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[580px] border-collapse">
             <thead>
               <tr className="border-b border-surface-3">
-                {['Folio', 'Orden de Servicio', 'Cliente', 'Total', 'Estado', 'Fecha', ''].map(h => (
-                  <th key={h} className="text-left px-4 py-2.5 text-[10px] text-text-faint uppercase tracking-wider font-medium">{h}</th>
-                ))}
+                <th className="text-left px-4 py-2.5 text-[10px] text-text-faint uppercase tracking-wider font-medium">Folio</th>
+                <th className="text-left px-4 py-2.5 text-[10px] text-text-faint uppercase tracking-wider font-medium hidden sm:table-cell">Orden de Servicio</th>
+                <th className="text-left px-4 py-2.5 text-[10px] text-text-faint uppercase tracking-wider font-medium">Cliente</th>
+                <th className="text-left px-4 py-2.5 text-[10px] text-text-faint uppercase tracking-wider font-medium">Total</th>
+                <th className="text-left px-4 py-2.5 text-[10px] text-text-faint uppercase tracking-wider font-medium">Estado</th>
+                <th className="text-left px-4 py-2.5 text-[10px] text-text-faint uppercase tracking-wider font-medium hidden md:table-cell">Fecha</th>
+                <th className="text-left px-4 py-2.5 text-[10px] text-text-faint uppercase tracking-wider font-medium"></th>
               </tr>
             </thead>
             <tbody>
@@ -150,7 +155,7 @@ function BillingPageContent() {
                 return (
                   <tr key={inv.id} className="border-b border-surface-3/40 last:border-0 hover:bg-surface-2/50 transition-colors">
                     <td className="px-4 py-3 text-[12px] font-medium text-text-primary">{inv.folio}</td>
-                    <td className="px-4 py-3 text-[12px]">
+                    <td className="px-4 py-3 text-[12px] hidden sm:table-cell">
                       {wo
                         ? <Link href={`/service-orders/detail?id=${wo.id}`} className="text-text-secondary hover:text-brand-200 transition-colors">{wo.folio}</Link>
                         : <span className="text-text-faint">—</span>}
@@ -162,7 +167,7 @@ function BillingPageContent() {
                     </td>
                     <td className="px-4 py-3 text-[12px] font-medium text-text-primary">{formatCurrency(inv.total)}</td>
                     <td className="px-4 py-3"><InvoiceBadge status={inv.status} /></td>
-                    <td className="px-4 py-3 text-[11px] text-text-faint">{formatDate(inv.created_at)}</td>
+                    <td className="px-4 py-3 text-[11px] text-text-faint hidden md:table-cell">{formatDate(inv.created_at)}</td>
                     <td className="px-4 py-3">
                       <Link href={`/billing/detail?id=${inv.id}`} className="text-[11px] text-brand-300 hover:text-brand-200 transition-colors">
                         Ver →
@@ -173,6 +178,7 @@ function BillingPageContent() {
               })}
             </tbody>
           </table>
+          </div>
 
           <Pagination
             page={page}

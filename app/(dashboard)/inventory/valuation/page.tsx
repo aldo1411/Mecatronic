@@ -24,9 +24,9 @@ export default function InventoryValuationPage() {
         subtitle="Valor total del stock actual por refacción"
       />
 
-      <div className="p-6 space-y-5">
+      <div className="p-4 md:p-6 space-y-5">
         {/* Summary cards */}
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="bg-surface-0 border border-surface-3 rounded-xl p-4">
             <p className="text-[10px] text-text-faint uppercase tracking-wider mb-1">Valor a costo</p>
             <p className="text-[20px] font-semibold text-text-primary">{formatCurrency(totalCost)}</p>
@@ -51,7 +51,8 @@ export default function InventoryValuationPage() {
 
         {/* Table */}
         <div className="bg-surface-0 border border-surface-3 rounded-xl overflow-hidden">
-          <table className="w-full border-collapse">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[700px] border-collapse">
             <thead>
               <tr className="border-b border-surface-3">
                 {['Refacción', 'Unidad', 'Stock', 'Costo prom.', 'Precio venta', 'Margen', 'Valor a costo', 'Valor a venta'].map(h => (
@@ -104,6 +105,7 @@ export default function InventoryValuationPage() {
               </tfoot>
             )}
           </table>
+          </div>
         </div>
       </div>
     </div>

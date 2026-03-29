@@ -75,10 +75,11 @@ export default function InventoryAdjustmentsPage() {
         }
       />
 
-      <div className="p-6">
+      <div className="p-4 md:p-6">
         <div className="relative bg-surface-0 border border-surface-3 rounded-xl overflow-hidden">
           <TableBackdrop visible={isFetching && !isLoading} />
-          <table className="w-full border-collapse">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[500px] border-collapse">
             <thead>
               <tr className="border-b border-surface-3">
                 {['Refacción', 'Tipo', 'Ajuste', 'Notas', 'Fecha'].map(h => (
@@ -116,6 +117,7 @@ export default function InventoryAdjustmentsPage() {
               ))}
             </tbody>
           </table>
+          </div>
 
           {totalPages > 1 && (
             <div className="flex items-center justify-between px-4 py-3 border-t border-surface-3">

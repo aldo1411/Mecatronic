@@ -102,7 +102,7 @@ function PartDetailPage() {
         }
       />
 
-      <div className="p-6 space-y-6">
+      <div className="p-4 md:p-6 space-y-6">
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <StatCard label="Stock actual" value={`${qty} ${part.unit}`} icon={<Package size={14} />}
@@ -138,7 +138,8 @@ function PartDetailPage() {
         <div>
           <p className="text-[11px] text-text-faint uppercase tracking-wider mb-3">Historial de entradas ({entriesData?.total ?? 0})</p>
           <div className="bg-surface-0 border border-surface-3 rounded-xl overflow-hidden">
-            <table className="w-full border-collapse">
+            <div className="overflow-x-auto">
+            <table className="w-full min-w-[520px] border-collapse">
               <thead>
                 <tr className="border-b border-surface-3">
                   {['Cantidad', 'Costo unit.', 'Total', 'Proveedor', 'Folio factura', 'Fecha'].map(h => (
@@ -161,6 +162,7 @@ function PartDetailPage() {
                 ))}
               </tbody>
             </table>
+            </div>
             <Pagination page={entriesPage} totalPages={entriesTotalPages} total={entriesData?.total ?? 0} label="entradas" onPrev={() => setEntriesPage(p => p - 1)} onNext={() => setEntriesPage(p => p + 1)} />
           </div>
         </div>
@@ -169,7 +171,8 @@ function PartDetailPage() {
         <div>
           <p className="text-[11px] text-text-faint uppercase tracking-wider mb-3">Uso en órdenes de servicio ({usageData?.total ?? 0})</p>
           <div className="bg-surface-0 border border-surface-3 rounded-xl overflow-hidden">
-            <table className="w-full border-collapse">
+            <div className="overflow-x-auto">
+            <table className="w-full min-w-[420px] border-collapse">
               <thead>
                 <tr className="border-b border-surface-3">
                   {['Folio OT', 'Estado', 'Cantidad', 'Precio venta', 'Fecha'].map(h => (
@@ -191,6 +194,7 @@ function PartDetailPage() {
                 ))}
               </tbody>
             </table>
+            </div>
             <Pagination page={usagePage} totalPages={usageTotalPages} total={usageData?.total ?? 0} label="usos" onPrev={() => setUsagePage(p => p - 1)} onNext={() => setUsagePage(p => p + 1)} />
           </div>
         </div>

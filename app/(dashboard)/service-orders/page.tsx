@@ -82,10 +82,12 @@ export default function ServiceOrdersPage() {
     setPage(1)
   }
 
-  const sortableHeader = (label: string, field: SortField) => (
+  const thClass = 'text-left px-4 py-2.5 text-[10px] text-text-faint uppercase tracking-wider font-medium'
+
+  const sortableHeader = (label: string, field: SortField, extraClass = '') => (
     <th
       onClick={() => handleSort(field)}
-      className="text-left px-4 py-2.5 text-[10px] text-text-faint uppercase tracking-wider font-medium cursor-pointer hover:text-text-muted select-none transition-colors"
+      className={`${thClass} cursor-pointer hover:text-text-muted select-none transition-colors ${extraClass}`}
     >
       {label}
       <SortIcon field={field} current={sort} />
@@ -107,16 +109,16 @@ export default function ServiceOrdersPage() {
         }
       />
 
-      <div className="p-6">
+      <div className="p-4 md:p-6">
         {/* Filters */}
-        <div className="flex items-center gap-3 mb-5 flex-wrap">
-          <div className="relative">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-5 flex-wrap">
+          <div className="relative w-full sm:w-auto">
             <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-faint" />
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Buscar por folio, cliente o vehículo..."
-              className="bg-surface-0 border border-surface-3 rounded-lg pl-8 pr-3 py-1.5 text-[12px] text-text-primary placeholder:text-text-faint outline-none focus:border-brand-400 transition-colors w-[280px]"
+              className="bg-surface-0 border border-surface-3 rounded-lg pl-8 pr-3 py-1.5 text-[12px] text-text-primary placeholder:text-text-faint outline-none focus:border-brand-400 transition-colors w-full sm:w-[280px]"
             />
           </div>
           <div className="flex gap-1.5 flex-wrap">
@@ -146,9 +148,9 @@ export default function ServiceOrdersPage() {
             </button>
           </div>
 
-          {/* Sort indicator */}
-          <div className="ml-auto flex items-center gap-2">
-            <span className="text-[11px] text-text-faint">Ordenar por:</span>
+          {/* Sort */}
+          <div className="sm:ml-auto flex items-center gap-2">
+            <span className="text-[11px] text-text-faint">Ordenar:</span>
             <button
               onClick={() => handleSort('created_at')}
               className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] border transition-colors ${
@@ -158,12 +160,7 @@ export default function ServiceOrdersPage() {
               }`}
             >
               Fecha
-              {sort.field === 'created_at'
-                ? sort.dir === 'desc'
-                  ? <ArrowDown size={11} />
-                  : <ArrowUp   size={11} />
-                : <ArrowUpDown size={11} className="opacity-40" />
-              }
+              {sort.field === 'created_at' ? sort.dir === 'desc' ? <ArrowDown size={11} /> : <ArrowUp size={11} /> : <ArrowUpDown size={11} className="opacity-40" />}
             </button>
             <button
               onClick={() => handleSort('folio')}
@@ -174,12 +171,7 @@ export default function ServiceOrdersPage() {
               }`}
             >
               Folio
-              {sort.field === 'folio'
-                ? sort.dir === 'desc'
-                  ? <ArrowDown size={11} />
-                  : <ArrowUp   size={11} />
-                : <ArrowUpDown size={11} className="opacity-40" />
-              }
+              {sort.field === 'folio' ? sort.dir === 'desc' ? <ArrowDown size={11} /> : <ArrowUp size={11} /> : <ArrowUpDown size={11} className="opacity-40" />}
             </button>
           </div>
         </div>
@@ -187,67 +179,69 @@ export default function ServiceOrdersPage() {
         {/* Table */}
         <div className="relative bg-surface-0 border border-surface-3 rounded-xl overflow-hidden">
           <TableBackdrop visible={isFetching && !isLoading} />
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="border-b border-surface-3">
-                {sortableHeader('Folio', 'folio')}
-                <th className="text-left px-4 py-2.5 text-[10px] text-text-faint uppercase tracking-wider font-medium">Vehículo</th>
-                <th className="text-left px-4 py-2.5 text-[10px] text-text-faint uppercase tracking-wider font-medium">Cliente</th>
-                <th className="text-left px-4 py-2.5 text-[10px] text-text-faint uppercase tracking-wider font-medium">Mecánico</th>
-                <th className="text-left px-4 py-2.5 text-[10px] text-text-faint uppercase tracking-wider font-medium">Estado</th>
-                <th className="text-left px-4 py-2.5 text-[10px] text-text-faint uppercase tracking-wider font-medium">Total</th>
-                {sortableHeader('Fecha', 'created_at')}
-                <th className="text-left px-4 py-2.5 text-[10px] text-text-faint uppercase tracking-wider font-medium"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                <TableLoader cols={8} />
-              ) : filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="px-4 py-10 text-center text-[12px] text-text-faint">
-                    {search ? 'Sin resultados para tu búsqueda' : 'Sin órdenes registradas'}
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[700px] border-collapse">
+              <thead>
+                <tr className="border-b border-surface-3">
+                  {sortableHeader('Folio', 'folio')}
+                  <th className={thClass}>Vehículo</th>
+                  <th className={thClass}>Cliente</th>
+                  <th className={`${thClass} hidden lg:table-cell`}>Mecánico</th>
+                  <th className={thClass}>Estado</th>
+                  <th className={`${thClass} hidden sm:table-cell`}>Total</th>
+                  {sortableHeader('Fecha', 'created_at', 'hidden md:table-cell')}
+                  <th className={thClass}></th>
                 </tr>
-              ) : filtered.map(order => {
-                const client   = order.profiles  as { id: string; name: string; last_name: string } | undefined
-                const vehicle  = order.vehicles   as { brand: string; model: string; year: number } | undefined
-                const mechanic = order.mechanics  as { name: string; last_name: string } | undefined
-                return (
-                  <tr key={order.id} className="border-b border-surface-3/40 last:border-0 hover:bg-surface-2/50 transition-colors">
-                    <td className="px-4 py-3 text-[12px] font-medium text-text-primary font-mono">{order.folio}</td>
-                    <td className="px-4 py-3">
-                      <p className="text-[12px] text-text-primary">
-                        {vehicle ? `${vehicle.brand} ${vehicle.model} ${vehicle.year}` : '—'}
-                      </p>
-                    </td>
-                    <td className="px-4 py-3 text-[12px]">
-                      {client
-                        ? <Link href={`/clients/detail?id=${client.id}`} className="text-text-secondary hover:text-brand-200 transition-colors">{client.name} {client.last_name}</Link>
-                        : <span className="text-text-faint">—</span>}
-                    </td>
-                    <td className="px-4 py-3 text-[12px] text-text-muted">
-                      {mechanic ? `${mechanic.name} ${mechanic.last_name}` : '—'}
-                    </td>
-                    <td className="px-4 py-3"><WorkOrderBadge state={order.state} /></td>
-                    <td className="px-4 py-3 text-[12px] font-medium text-text-primary">
-                      {(() => {
-                        const inv = ((order.invoices ?? []) as { status: string; total: number }[])
-                          .find(i => i.status !== 'cancelled')
-                        return inv && inv.total > 0 ? formatCurrency(inv.total) : '—'
-                      })()}
-                    </td>
-                    <td className="px-4 py-3 text-[11px] text-text-faint">{formatDate(order.created_at)}</td>
-                    <td className="px-4 py-3">
-                      <Link href={`/service-orders/detail?id=${order.id}`} className="text-[11px] text-brand-300 hover:text-brand-200 transition-colors">
-                        Ver →
-                      </Link>
+              </thead>
+              <tbody>
+                {isLoading ? (
+                  <TableLoader cols={8} />
+                ) : filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="px-4 py-10 text-center text-[12px] text-text-faint">
+                      {search ? 'Sin resultados para tu búsqueda' : 'Sin órdenes registradas'}
                     </td>
                   </tr>
-                )
-              })}
-            </tbody>
-          </table>
+                ) : filtered.map(order => {
+                  const client   = order.profiles  as { id: string; name: string; last_name: string } | undefined
+                  const vehicle  = order.vehicles   as { brand: string; model: string; year: number } | undefined
+                  const mechanic = order.mechanics  as { name: string; last_name: string } | undefined
+                  return (
+                    <tr key={order.id} className="border-b border-surface-3/40 last:border-0 hover:bg-surface-2/50 transition-colors">
+                      <td className="px-4 py-3 text-[12px] font-medium text-text-primary font-mono">{order.folio}</td>
+                      <td className="px-4 py-3">
+                        <p className="text-[12px] text-text-primary">
+                          {vehicle ? `${vehicle.brand} ${vehicle.model} ${vehicle.year}` : '—'}
+                        </p>
+                      </td>
+                      <td className="px-4 py-3 text-[12px]">
+                        {client
+                          ? <Link href={`/clients/detail?id=${client.id}`} className="text-text-secondary hover:text-brand-200 transition-colors">{client.name} {client.last_name}</Link>
+                          : <span className="text-text-faint">—</span>}
+                      </td>
+                      <td className="px-4 py-3 text-[12px] text-text-muted hidden lg:table-cell">
+                        {mechanic ? `${mechanic.name} ${mechanic.last_name}` : '—'}
+                      </td>
+                      <td className="px-4 py-3"><WorkOrderBadge state={order.state} /></td>
+                      <td className="px-4 py-3 text-[12px] font-medium text-text-primary hidden sm:table-cell">
+                        {(() => {
+                          const inv = ((order.invoices ?? []) as { status: string; total: number }[])
+                            .find(i => i.status !== 'cancelled')
+                          return inv && inv.total > 0 ? formatCurrency(inv.total) : '—'
+                        })()}
+                      </td>
+                      <td className="px-4 py-3 text-[11px] text-text-faint hidden md:table-cell">{formatDate(order.created_at)}</td>
+                      <td className="px-4 py-3">
+                        <Link href={`/service-orders/detail?id=${order.id}`} className="text-[11px] text-brand-300 hover:text-brand-200 transition-colors">
+                          Ver →
+                        </Link>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
 
           <Pagination
             page={page}

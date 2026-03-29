@@ -58,7 +58,7 @@ export default function InventoryEntriesPage() {
         }
       />
 
-      <div className="p-6">
+      <div className="p-4 md:p-6">
         {success && (
           <div className="flex items-center gap-2 bg-brand-500/20 border border-brand-400 rounded-xl px-4 py-3 mb-5 animate-fadeIn">
             <CheckCircle size={15} className="text-brand-300" />
@@ -68,7 +68,8 @@ export default function InventoryEntriesPage() {
 
         <div className="relative bg-surface-0 border border-surface-3 rounded-xl overflow-hidden">
           <TableBackdrop visible={isFetching && !isLoading} />
-          <table className="w-full border-collapse">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[600px] border-collapse">
             <thead>
               <tr className="border-b border-surface-3">
                 {['Refacción', 'Proveedor', 'Cantidad', 'Costo unit.', 'Total', 'Folio factura', 'Fecha'].map(h => (
@@ -97,6 +98,7 @@ export default function InventoryEntriesPage() {
               ))}
             </tbody>
           </table>
+          </div>
 
           {totalPages > 1 && (
             <div className="flex items-center justify-between px-4 py-3 border-t border-surface-3">
@@ -156,7 +158,7 @@ export default function InventoryEntriesPage() {
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[10px] text-text-faint uppercase tracking-wider mb-1">Cantidad *</label>
                   <input
