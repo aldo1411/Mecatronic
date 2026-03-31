@@ -8,6 +8,7 @@ export default function ResetPasswordPage() {
   const router = useRouter()
   const [ready, setReady] = useState(false)
   const [isInvite, setIsInvite] = useState(false)
+  const [tokenExpired, setTokenExpired] = useState(false)
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -28,17 +29,37 @@ export default function ResetPasswordPage() {
     const hash = typeof window !== 'undefined' ? window.location.hash : ''
     const fromInvite = hash.includes('type=invite')
     const fromRecovery = hash.includes('type=recovery')
+    // Verify the URL actually carries a token — prevents a pre-existing session from
+    // hijacking this page when the link is expired/absent (the token would be missing).
+    const hasToken = hash.includes('access_token=')
     if (fromInvite) setIsInvite(true)
+
+    // No token in the URL at all → show expired immediately, no need to wait
+    if (!hasToken) {
+      setTokenExpired(true)
+      return
+    }
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'PASSWORD_RECOVERY') {
         setReady(true)
       }
-      if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session && (fromInvite || fromRecovery)) {
+      // Only accept SIGNED_IN / INITIAL_SESSION if the URL had a token — this prevents
+      // a pre-existing logged-in session from bypassing an expired link.
+      if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session && hasToken && (fromInvite || fromRecovery)) {
         setReady(true)
       }
     })
-    return () => subscription.unsubscribe()
+
+    // If no valid session event fires within 8s the token is likely expired or invalid
+    const timeout = setTimeout(() => {
+      setTokenExpired(true)
+    }, 8000)
+
+    return () => {
+      subscription.unsubscribe()
+      clearTimeout(timeout)
+    }
   }, [])
 
   async function handleSubmit(e: React.FormEvent) {
@@ -81,9 +102,24 @@ export default function ResetPasswordPage() {
 
         <div className="bg-surface-0 border border-surface-3 rounded-xl p-6">
           {!ready ? (
-            <div className="flex flex-col items-center gap-3 py-6">
-              <Loader2 size={20} className="animate-spin text-brand-300" />
-              <p className="text-[13px] text-text-muted">Verificando enlace...</p>
+            <div className="flex flex-col items-center gap-3 py-6 text-center">
+              {tokenExpired ? (
+                <>
+                  <p className="text-[15px] font-medium text-text-primary">Enlace inválido o expirado</p>
+                  <p className="text-[13px] text-text-muted">Este link ya no es válido. Solicita una nueva invitación o restablece tu contraseña.</p>
+                  <button
+                    onClick={() => router.replace('/login')}
+                    className="mt-2 text-[12px] text-brand-300 hover:text-brand-200 transition-colors"
+                  >
+                    Volver al inicio de sesión
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Loader2 size={20} className="animate-spin text-brand-300" />
+                  <p className="text-[13px] text-text-muted">Verificando enlace...</p>
+                </>
+              )}
             </div>
           ) : (
             <>
