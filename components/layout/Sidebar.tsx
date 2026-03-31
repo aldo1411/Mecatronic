@@ -1,8 +1,8 @@
 'use client'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, ClipboardList, Package, Receipt, Users, Settings, ChevronDown, Wrench, LogOut } from 'lucide-react'
+import { LayoutDashboard, ClipboardList, Package, Receipt, Users, Settings, ChevronDown, Wrench, LogOut, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useWorkshopStore } from '@/stores/workshop.store'
 import { useUIStore } from '@/stores/ui.store'
@@ -10,6 +10,7 @@ import { useLowStockAlerts } from '@/hooks/useInventory'
 import { useSubscriptionSync } from '@/hooks/useSubscriptionSync'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { toast } from '@/components/shared/Toast'
 
 const BILLING_ROLES = ['owner', 'admin', 'receptionist', 'superadmin']
 
@@ -40,6 +41,7 @@ export function Sidebar() {
   const { data: lowStock } = useLowStockAlerts()
   useSubscriptionSync()
   const lowStockCount = lowStock?.length ?? 0
+  const [loggingOut, setLoggingOut] = useState(false)
 
   // Close drawer on navigation (mobile)
   useEffect(() => {
@@ -47,14 +49,30 @@ export function Sidebar() {
   }, [pathname])
 
   async function handleLogout() {
-    const supabase = createClient()
-    await supabase.auth.signOut()
-    clearWorkshop()
-    router.push('/login')
+    setLoggingOut(true)
+    try {
+      const supabase = createClient()
+      await supabase.auth.signOut()
+      clearWorkshop()
+      router.push('/login')
+    } catch {
+      setLoggingOut(false)
+      toast.error('Error al cerrar sesión', 'Intenta de nuevo')
+    }
   }
 
   return (
     <>
+      {/* Logout backdrop */}
+      {loggingOut && (
+        <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center">
+          <div className="flex flex-col items-center gap-3">
+            <Loader2 size={24} className="animate-spin text-brand-300" />
+            <p className="text-[12px] text-text-faint">Cerrando sesión...</p>
+          </div>
+        </div>
+      )}
+
       {/* Mobile overlay */}
       <div
         className={cn(
@@ -83,7 +101,7 @@ export function Sidebar() {
         </div>
 
         {/* Workshop switcher */}
-        <Link href="/select-workshop" className="mx-[10px] my-[10px] px-[10px] py-2 bg-surface-2 border border-surface-3 rounded-lg cursor-pointer flex items-center justify-between hover:border-brand-400/50 transition-colors">
+        <Link href="/select-workshop?switch=true" className="mx-[10px] my-[10px] px-[10px] py-2 bg-surface-2 border border-surface-3 rounded-lg cursor-pointer flex items-center justify-between hover:border-brand-400/50 transition-colors">
           <div className="min-w-0">
             <p className="text-[12px] font-medium text-text-primary truncate">
               {activeWorkshop?.name ?? 'Sin taller'}

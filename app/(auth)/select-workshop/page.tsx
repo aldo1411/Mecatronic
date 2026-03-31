@@ -1,11 +1,19 @@
 'use client'
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useState, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { getUserWorkshops, switchWorkshop } from '@/services/workshops'
 import { useWorkshopStore } from '@/stores/workshop.store'
 import type { UserWorkshop } from '@/types/database'
 import { Wrench, ChevronRight, Loader2, LogOut } from 'lucide-react'
+
+const ROLE_LABELS: Record<string, string> = {
+  owner:        'Dueño',
+  admin:        'Administrador',
+  mechanic:     'Mecánico',
+  receptionist: 'Recepcionista',
+  superadmin:   'Superadmin',
+}
 
 const STATUS_LABELS: Record<string, { label: string; className: string }> = {
   trialing:  { label: 'Prueba gratuita', className: 'bg-blue-950 text-blue-300' },
@@ -15,8 +23,10 @@ const STATUS_LABELS: Record<string, { label: string; className: string }> = {
   cancelled: { label: 'Cancelado',       className: 'bg-surface-2 text-text-muted' },
 }
 
-export default function SelectWorkshopPage() {
+function SelectWorkshopContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const isSwitching = searchParams.get('switch') === 'true'
   const { setActiveWorkshop } = useWorkshopStore()
   const [memberships, setMemberships] = useState<UserWorkshop[]>([])
   const [loading, setLoading] = useState(true)
@@ -27,16 +37,15 @@ export default function SelectWorkshopPage() {
     async function init() {
       const supabase = createClient()
 
-      // Refrescar sesión para obtener app_metadata actualizado
-      const { data: { session } } = await supabase.auth.refreshSession()
+      const { data: { session } } = await supabase.auth.getSession()
       const meta = session?.user?.app_metadata as {
         active_workshop_id?: string
         active_role?: string
         subscription_status?: string
       } | undefined
 
-      // Si ya tiene workshop activo en el JWT, ir directo al dashboard
-      if (meta?.active_workshop_id && meta?.subscription_status !== 'suspended') {
+      // Si ya tiene workshop activo en el JWT y no viene a cambiar, ir directo al dashboard
+      if (!isSwitching && meta?.active_workshop_id && meta?.subscription_status !== 'suspended') {
         const wsList = await getUserWorkshops()
         const activeMembership = wsList.find(m => m.workshop_id === meta.active_workshop_id)
         if (activeMembership?.workshops) {
@@ -56,7 +65,7 @@ export default function SelectWorkshopPage() {
       setLoading(false)
     }
     init()
-  }, [router, setActiveWorkshop])
+  }, [router, setActiveWorkshop, isSwitching])
 
   async function handleSelect(membership: UserWorkshop) {
     if (!membership.workshops) return
@@ -135,7 +144,7 @@ export default function SelectWorkshopPage() {
                     <div className="flex-1 min-w-0">
                       <p className="text-[13px] font-medium text-text-primary truncate">{ws.name}</p>
                       <div className="flex items-center gap-2 mt-1">
-                        <span className="text-[10px] text-text-faint capitalize">{m.roles?.name}</span>
+                        <span className="text-[10px] text-text-faint">{ROLE_LABELS[m.roles?.name ?? ''] ?? m.roles?.name}</span>
                         <span className="text-text-faint">·</span>
                         <span className={`text-[10px] px-1.5 py-0.5 rounded ${statusInfo.className}`}>
                           {statusInfo.label}
@@ -168,5 +177,17 @@ export default function SelectWorkshopPage() {
         </button>
       </div>
     </div>
+  )
+}
+
+export default function SelectWorkshopPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-surface-1 flex items-center justify-center">
+        <Loader2 size={20} className="animate-spin text-text-muted" />
+      </div>
+    }>
+      <SelectWorkshopContent />
+    </Suspense>
   )
 }
