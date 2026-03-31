@@ -9,7 +9,6 @@ import { Loader2 } from 'lucide-react'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
-  const { activeWorkshop } = useWorkshopStore()
   const [checking, setChecking] = useState(true)
 
   useEffect(() => {
@@ -22,6 +21,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         return
       }
 
+      // Leer del store directamente para evitar closure stale antes de rehydratación de Zustand
+      const activeWorkshop = useWorkshopStore.getState().activeWorkshop
       if (!activeWorkshop) {
         router.replace('/select-workshop')
         return

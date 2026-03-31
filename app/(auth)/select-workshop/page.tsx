@@ -38,6 +38,12 @@ function SelectWorkshopContent() {
       const supabase = createClient()
 
       const { data: { session } } = await supabase.auth.getSession()
+
+      if (!session) {
+        router.replace('/login')
+        return
+      }
+
       const meta = session?.user?.app_metadata as {
         active_workshop_id?: string
         active_role?: string
