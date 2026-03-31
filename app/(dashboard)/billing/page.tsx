@@ -1,15 +1,16 @@
 'use client'
-import { Suspense, useState, useEffect } from 'react'
+import { Suspense, useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { TableLoader, TableBackdrop } from '@/components/shared/Loader'
 import { Topbar } from '@/components/layout/Topbar'
 import { InvoiceBadge } from '@/components/shared/StatusBadge'
+import { Pagination } from '@/components/shared/Pagination'
 import { useInvoices, useCreateInvoiceFromWorkOrder, INVOICES_PAGE_SIZE } from '@/hooks/useBilling'
 import { useWorkshopStore } from '@/stores/workshop.store'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { toast } from '@/components/shared/Toast'
-import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react'
+import { Loader2, Search } from 'lucide-react'
 
 const STATUS_FILTERS = [
   { value: '',          label: 'Todos' },
@@ -29,6 +30,7 @@ function BillingPageContent() {
   const [status, setStatus]       = useState('')
   const [dateFrom, setDateFrom]   = useState('')
   const [dateTo, setDateTo]       = useState('')
+  const [search, setSearch]       = useState('')
 
   const { data, isLoading, isFetching } = useInvoices({
     page,
@@ -36,24 +38,25 @@ function BillingPageContent() {
     dateFrom:   dateFrom || undefined,
     dateTo:     dateTo || undefined,
     workshopId: activeWorkshop?.id,
+    search:     search || undefined,
   })
 
-  const invoices   = data?.data ?? []
-  const total      = data?.total ?? 0
-  const totalPages = Math.ceil(total / INVOICES_PAGE_SIZE)
+  const invoices = data?.data ?? []
+  const total    = data?.total ?? 0
 
   const createInvoice = useCreateInvoiceFromWorkOrder()
+  const firedRef = useRef(false)
 
   // Auto-create invoice when coming from a work order
   useEffect(() => {
-    if (!workOrderId || !activeWorkshop || createInvoice.isPending || createInvoice.isSuccess) return
-    createInvoice.mutate(
-      { workOrderId, workshopId: activeWorkshop.id },
-      {
-        onSuccess: (invoice) => router.replace(`/billing/${invoice.id}`),
-        onError:   () => toast.error('Error al crear cobro'),
-      }
-    )
+    if (!workOrderId || !activeWorkshop || firedRef.current) return
+    firedRef.current = true
+    createInvoice.mutateAsync({ workOrderId, workshopId: activeWorkshop.id })
+      .then(invoice => router.replace(`/billing/detail?id=${invoice.id}`))
+      .catch(() => {
+        firedRef.current = false
+        toast.error('Error al crear cobro')
+      })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workOrderId, activeWorkshop?.id])
 
@@ -67,7 +70,7 @@ function BillingPageContent() {
   }
 
   function resetFilters() {
-    setStatus(''); setDateFrom(''); setDateTo(''); setPage(1)
+    setStatus(''); setDateFrom(''); setDateTo(''); setSearch(''); setPage(1)
   }
 
   return (
@@ -77,10 +80,19 @@ function BillingPageContent() {
         subtitle={`${total} cobros registrados`}
       />
 
-      <div className="p-6 space-y-4">
+      <div className="p-4 md:p-6 space-y-4">
         {/* Filters */}
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex gap-1">
+        <div className="flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-2">
+          <div className="relative w-full sm:w-auto">
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-faint" />
+            <input
+              value={search}
+              onChange={e => { setSearch(e.target.value); setPage(1) }}
+              placeholder="Buscar por folio o N° de OS..."
+              className="bg-surface-0 border border-surface-3 rounded-lg pl-8 pr-3 py-1.5 text-[12px] text-text-primary placeholder:text-text-faint outline-none focus:border-brand-400 transition-colors w-full sm:w-[260px]"
+            />
+          </div>
+          <div className="flex gap-1 flex-wrap">
             {STATUS_FILTERS.map(f => (
               <button
                 key={f.value}
@@ -95,7 +107,7 @@ function BillingPageContent() {
               </button>
             ))}
           </div>
-          <div className="flex items-center gap-2 ml-2">
+          <div className="flex flex-wrap items-center gap-2">
             <input
               type="date"
               value={dateFrom}
@@ -119,12 +131,17 @@ function BillingPageContent() {
 
         <div className="relative bg-surface-0 border border-surface-3 rounded-xl overflow-hidden">
           <TableBackdrop visible={isFetching && !isLoading} />
-          <table className="w-full border-collapse">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[580px] border-collapse">
             <thead>
               <tr className="border-b border-surface-3">
-                {['Folio', 'OT', 'Cliente', 'Total', 'Estado', 'Fecha', ''].map(h => (
-                  <th key={h} className="text-left px-4 py-2.5 text-[10px] text-text-faint uppercase tracking-wider font-medium">{h}</th>
-                ))}
+                <th className="text-left px-4 py-2.5 text-[10px] text-text-faint uppercase tracking-wider font-medium">Folio</th>
+                <th className="text-left px-4 py-2.5 text-[10px] text-text-faint uppercase tracking-wider font-medium hidden sm:table-cell">Orden de Servicio</th>
+                <th className="text-left px-4 py-2.5 text-[10px] text-text-faint uppercase tracking-wider font-medium">Cliente</th>
+                <th className="text-left px-4 py-2.5 text-[10px] text-text-faint uppercase tracking-wider font-medium">Total</th>
+                <th className="text-left px-4 py-2.5 text-[10px] text-text-faint uppercase tracking-wider font-medium">Estado</th>
+                <th className="text-left px-4 py-2.5 text-[10px] text-text-faint uppercase tracking-wider font-medium hidden md:table-cell">Fecha</th>
+                <th className="text-left px-4 py-2.5 text-[10px] text-text-faint uppercase tracking-wider font-medium"></th>
               </tr>
             </thead>
             <tbody>
@@ -133,20 +150,26 @@ function BillingPageContent() {
               ) : invoices.length === 0 ? (
                 <tr><td colSpan={7} className="px-4 py-8 text-center text-[12px] text-text-faint">Sin cobros registrados</td></tr>
               ) : invoices.map(inv => {
-                const client = inv.profiles as { name: string; last_name: string } | undefined
-                const wo     = inv.work_orders as { folio: string } | undefined
+                const client = inv.profiles as { id: string; name: string; last_name: string } | undefined
+                const wo     = inv.work_orders as { id: string; folio: string } | undefined
                 return (
                   <tr key={inv.id} className="border-b border-surface-3/40 last:border-0 hover:bg-surface-2/50 transition-colors">
                     <td className="px-4 py-3 text-[12px] font-medium text-text-primary">{inv.folio}</td>
-                    <td className="px-4 py-3 text-[12px] text-text-secondary">{wo?.folio ?? '—'}</td>
-                    <td className="px-4 py-3 text-[12px] text-text-secondary">
-                      {client ? `${client.name} ${client.last_name}` : '—'}
+                    <td className="px-4 py-3 text-[12px] hidden sm:table-cell">
+                      {wo
+                        ? <Link href={`/service-orders/detail?id=${wo.id}`} className="text-text-secondary hover:text-brand-200 transition-colors">{wo.folio}</Link>
+                        : <span className="text-text-faint">—</span>}
+                    </td>
+                    <td className="px-4 py-3 text-[12px]">
+                      {client
+                        ? <Link href={`/clients/detail?id=${client.id}`} className="text-text-secondary hover:text-brand-200 transition-colors">{client.name} {client.last_name}</Link>
+                        : <span className="text-text-faint">—</span>}
                     </td>
                     <td className="px-4 py-3 text-[12px] font-medium text-text-primary">{formatCurrency(inv.total)}</td>
                     <td className="px-4 py-3"><InvoiceBadge status={inv.status} /></td>
-                    <td className="px-4 py-3 text-[11px] text-text-faint">{formatDate(inv.created_at)}</td>
+                    <td className="px-4 py-3 text-[11px] text-text-faint hidden md:table-cell">{formatDate(inv.created_at)}</td>
                     <td className="px-4 py-3">
-                      <Link href={`/billing/${inv.id}`} className="text-[11px] text-brand-300 hover:text-brand-200 transition-colors">
+                      <Link href={`/billing/detail?id=${inv.id}`} className="text-[11px] text-brand-300 hover:text-brand-200 transition-colors">
                         Ver →
                       </Link>
                     </td>
@@ -155,20 +178,14 @@ function BillingPageContent() {
               })}
             </tbody>
           </table>
+          </div>
 
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between px-4 py-3 border-t border-surface-3">
-              <p className="text-[11px] text-text-faint">{total} cobros · página {page} de {totalPages}</p>
-              <div className="flex items-center gap-1">
-                <button onClick={() => setPage(p => p - 1)} disabled={page === 1} className="p-1.5 text-text-faint hover:text-text-primary disabled:opacity-30 transition-colors">
-                  <ChevronLeft size={14} />
-                </button>
-                <button onClick={() => setPage(p => p + 1)} disabled={page >= totalPages} className="p-1.5 text-text-faint hover:text-text-primary disabled:opacity-30 transition-colors">
-                  <ChevronRight size={14} />
-                </button>
-              </div>
-            </div>
-          )}
+          <Pagination
+            page={page}
+            pageSize={INVOICES_PAGE_SIZE}
+            total={total}
+            onPageChange={setPage}
+          />
         </div>
       </div>
     </div>

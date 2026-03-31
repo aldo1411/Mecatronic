@@ -17,6 +17,7 @@ export function useInvoices(params?: {
   dateFrom?: string
   dateTo?: string
   workshopId?: string
+  search?: string
 }) {
   return useQuery({
     queryKey: ['invoices', params],
@@ -41,7 +42,15 @@ export function useInvoiceBalance(invoiceId: string) {
 }
 
 export function useCreateInvoiceFromWorkOrder() {
-  return useMutation({ mutationFn: createInvoiceFromWorkOrder })
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: createInvoiceFromWorkOrder,
+    onSuccess: (invoice) => {
+      qc.invalidateQueries({ queryKey: ['invoice', invoice.id] })
+      qc.invalidateQueries({ queryKey: ['invoices'] })
+      qc.invalidateQueries({ queryKey: ['work-order'] })
+    },
+  })
 }
 
 export function useAddInvoiceItem() {
@@ -88,6 +97,9 @@ export function useCancelInvoice() {
     onSuccess: (_, invoiceId) => {
       qc.invalidateQueries({ queryKey: ['invoice', invoiceId] })
       qc.invalidateQueries({ queryKey: ['invoices'] })
+      qc.invalidateQueries({ queryKey: ['work-orders'] })
+      qc.invalidateQueries({ queryKey: ['work-order'] })
+      qc.invalidateQueries({ queryKey: ['parts'] })
     },
   })
 }
@@ -123,11 +135,11 @@ export function useServiceCatalog() {
   })
 }
 
-export function useDailyCashSummary() {
+export function useDailyCashSummary(params?: { from?: string; to?: string; page?: number }) {
   const { activeWorkshop } = useWorkshopStore()
   return useQuery({
-    queryKey: ['daily-cash-summary', activeWorkshop?.id],
-    queryFn:  () => getDailyCashSummary(activeWorkshop!.id),
+    queryKey: ['daily-cash-summary', activeWorkshop?.id, params],
+    queryFn:  () => getDailyCashSummary(activeWorkshop!.id, params),
     enabled:  !!activeWorkshop,
   })
 }

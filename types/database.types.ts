@@ -59,6 +59,7 @@ export interface Database {
           name: string
           rfc: string | null
           subscription_status: SubscriptionStatus
+          tax_rate: number
           created_at: string
           updated_at: string
           is_active: boolean
@@ -131,7 +132,7 @@ export interface Database {
         Insert: Omit<Database['public']['Tables']['parts']['Row'], 'id' | 'created_at' | 'updated_at'>
         Update: Partial<Database['public']['Tables']['parts']['Insert']>
       }
-      inventory_inventario: {
+      inventory_stock: {
         Row: {
           id: string
           workshop_id: string
@@ -192,6 +193,7 @@ export interface Database {
         Row: {
           id: string
           vehicle_id: string
+          work_order_id: string | null
           notes: string | null
           photos: string[] | null
           kilometers: number | null
@@ -248,7 +250,6 @@ export interface Database {
           name: string
           description: string | null
           default_price: number
-          tax_rate: number
           created_at: string
           updated_at: string
           is_active: boolean
@@ -296,6 +297,7 @@ export interface Database {
           subtotal: number
           tax_amount: number
           total: number
+          is_active: boolean
           created_at: string
         }
         Insert: Omit<Database['public']['Tables']['invoice_items']['Row'], 'id' | 'created_at' | 'subtotal' | 'tax_amount' | 'total'>
@@ -366,6 +368,14 @@ export interface Database {
       }
     }
     Functions: {
+      cancel_work_order: {
+        Args: { p_work_order_id: string }
+        Returns: void
+      }
+      cancel_invoice: {
+        Args: { p_invoice_id: string }
+        Returns: void
+      }
       increment_folio_sequence: {
         Args: { p_workshop_id: string; p_folio_type: string; p_year: number }
         Returns: number

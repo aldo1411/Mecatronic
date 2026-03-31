@@ -6,6 +6,7 @@ import {
   uploadWorkOrderPhoto, updateWorkOrderPhotos, deleteWorkOrderPhoto,
   getHistoryNotes, HISTORY_PAGE_SIZE,
   cancelWorkOrder, getWorkOrderBalance,
+  addHistoryNote,
   type SortField, type SortDir
 } from '@/services/work-orders'
 import type { WorkOrderState } from '@/types/database'
@@ -13,10 +14,11 @@ import type { WorkOrderState } from '@/types/database'
 export type { SortField, SortDir }
 
 export function useWorkOrders(params?: {
-  state?:     WorkOrderState
-  page?:      number
-  sortField?: SortField
-  sortDir?:   SortDir
+  state?:        WorkOrderState
+  page?:         number
+  sortField?:    SortField
+  sortDir?:      SortDir
+  assignedToMe?: boolean
 }) {
   return useQuery({
     queryKey: ['work-orders', params],
@@ -131,6 +133,17 @@ export function useWorkOrderBalance(workOrderId: string | undefined) {
     queryKey: ['work-order-balance', workOrderId],
     queryFn:  () => getWorkOrderBalance(workOrderId!),
     enabled:  !!workOrderId,
+  })
+}
+
+export function useAddHistoryNote() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: addHistoryNote,
+    onSuccess: (_, { workOrderId }) => {
+      qc.invalidateQueries({ queryKey: ['work-order', workOrderId] })
+      qc.invalidateQueries({ queryKey: ['history-notes'] })
+    },
   })
 }
 

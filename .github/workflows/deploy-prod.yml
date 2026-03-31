@@ -12,6 +12,9 @@ concurrency:
   group: deploy-prod
   cancel-in-progress: false
 
+permissions:
+  contents: write
+
 jobs:
   build-and-deploy:
     name: Build & Deploy to Production

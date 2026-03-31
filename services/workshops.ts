@@ -14,7 +14,6 @@ export async function getUserWorkshops(): Promise<UserWorkshop[]> {
 export async function switchWorkshop(workshopId: string) {
   const supabase = createClient()
 
-  // Refrescar sesión primero para garantizar access_token válido
   const { data: { session }, error: sessionError } = await supabase.auth.refreshSession()
 
   if (sessionError || !session?.access_token) {
@@ -40,7 +39,7 @@ export async function switchWorkshop(workshopId: string) {
 
   const result = await res.json()
 
-  // Refrescar sesión después para que el nuevo JWT con app_metadata actualizado
+  // Refrescar sesión para que el nuevo JWT con app_metadata actualizado
   // esté disponible en el cliente inmediatamente
   await supabase.auth.refreshSession()
 

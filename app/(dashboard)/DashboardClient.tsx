@@ -2,38 +2,94 @@
 import { Topbar } from '@/components/layout/Topbar'
 import { useWorkOrders } from '@/hooks/useWorkOrders'
 import { useLowStockAlerts } from '@/hooks/useInventory'
+import { useDailyCashSummary } from '@/hooks/useBilling'
+import { useWorkshopStore } from '@/stores/workshop.store'
 import { WorkOrderBadge } from '@/components/shared/StatusBadge'
-import { formatCurrency, formatDateTime } from '@/lib/utils'
+import { formatCurrency } from '@/lib/utils'
 import { TrendingUp, ClipboardList, Package, CheckCircle, Plus } from 'lucide-react'
 import Link from 'next/link'
 
-interface Props {
-  metrics: {
-    todayRevenue: number
-    activeOrders: number
-    deliveredToday: number
-    stockAlerts: number
-  }
-  recentOrders: unknown[]
-}
+const ACTIVE_STATES = ['received', 'in_progress', 'waiting_part', 'ready']
 
-export function DashboardClient({ metrics }: Props) {
+export function DashboardClient() {
+  const { activeRole } = useWorkshopStore()
+  const isMechanic = activeRole === 'mechanic'
+
   const { data: result, isLoading } = useWorkOrders()
   const { data: lowStock } = useLowStockAlerts()
+  const { data: cashSummary } = useDailyCashSummary()
 
-  const activeOrders = (result?.data ?? []).filter(o =>
-    ['received','in_progress','waiting_part','ready'].includes(o.state)
-  ).slice(0, 5)
+  const today = new Date().toISOString().slice(0, 10)
+  const allOrders = result?.data ?? []
+  const activeOrders = allOrders.filter(o => ACTIVE_STATES.includes(o.state)).slice(0, 5)
 
-  const today = new Date().toLocaleDateString('es-MX', {
+  const todayLabel = new Date().toLocaleDateString('es-MX', {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
   })
+
+  const activeOrdersTable = (
+    <div className="bg-surface-0 border border-surface-3 rounded-xl overflow-hidden">
+      <div className="px-4 py-3 border-b border-surface-3 flex items-center justify-between">
+        <p className="text-[13px] font-medium text-text-primary">Órdenes activas</p>
+        <Link href="/service-orders" className="text-[11px] text-brand-300 hover:text-brand-200 transition-colors">
+          Ver todas →
+        </Link>
+      </div>
+      {isLoading ? (
+        <div className="p-6 text-center text-[12px] text-text-faint">Cargando...</div>
+      ) : activeOrders.length === 0 ? (
+        <div className="p-6 text-center text-[12px] text-text-faint">Sin órdenes activas</div>
+      ) : (
+        <div>
+          {activeOrders.map(order => {
+            const client = order.profiles as { name: string; last_name: string } | undefined
+            const vehicle = order.vehicles as { brand: string; model: string; year: number } | undefined
+            return (
+              <Link
+                key={order.id}
+                href={`/service-orders/detail?id=${order.id}`}
+                className="flex items-center gap-3 px-4 py-3 border-b border-surface-3/50 last:border-0 hover:bg-surface-2 transition-colors"
+              >
+                <div className="flex-shrink-0 w-[90px]">
+                  <p className="text-[12px] font-medium text-text-primary">{order.folio}</p>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[12px] text-text-primary truncate">
+                    {vehicle ? `${vehicle.brand} ${vehicle.model} ${vehicle.year}` : '—'}
+                  </p>
+                  <p className="text-[11px] text-text-faint">
+                    {client ? `${client.name} ${client.last_name}` : '—'}
+                  </p>
+                </div>
+                <WorkOrderBadge state={order.state} />
+              </Link>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+
+  if (isMechanic) {
+    return (
+      <div>
+        <Topbar title="Resumen" subtitle={todayLabel} />
+        <div className="p-4 md:p-6">
+          {activeOrdersTable}
+        </div>
+      </div>
+    )
+  }
+
+  const todayRevenue = (cashSummary?.data ?? []).filter(r => r.day === today).reduce((s, r) => s + r.total, 0)
+  const activeCount = allOrders.filter(o => ACTIVE_STATES.includes(o.state)).length
+  const deliveredToday = allOrders.filter(o => o.state === 'delivered' && o.created_at?.slice(0, 10) === today).length
 
   return (
     <div>
       <Topbar
-        title="Dashboard"
-        subtitle={today}
+        title="Resumen"
+        subtitle={todayLabel}
         actions={
           <Link
             href="/service-orders/new"
@@ -45,14 +101,14 @@ export function DashboardClient({ metrics }: Props) {
         }
       />
 
-      <div className="p-6 space-y-6">
+      <div className="p-4 md:p-6 space-y-6">
         {/* Metrics */}
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {[
-            { label: 'OS activas', value: metrics.activeOrders, icon: ClipboardList, color: 'text-blue-300' },
-            { label: 'Ingresos hoy', value: formatCurrency(metrics.todayRevenue), icon: TrendingUp, color: 'text-brand-200' },
-            { label: 'OS entregadas hoy', value: metrics.deliveredToday, icon: CheckCircle, color: 'text-brand-200' },
-            { label: 'Inventario crítico', value: metrics.stockAlerts, icon: Package, color: 'text-amber-300' },
+            { label: 'OS activas', value: activeCount, icon: ClipboardList, color: 'text-blue-300' },
+            { label: 'Ingresos hoy', value: formatCurrency(todayRevenue), icon: TrendingUp, color: 'text-brand-200' },
+            { label: 'OS entregadas hoy', value: deliveredToday, icon: CheckCircle, color: 'text-brand-200' },
+            { label: 'Inventario crítico', value: (lowStock ?? []).length, icon: Package, color: 'text-amber-300' },
           ].map(({ label, value, icon: Icon, color }) => (
             <div key={label} className="bg-surface-0 border border-surface-3 rounded-xl p-4 animate-fadeIn">
               <div className="flex items-center justify-between mb-3">
@@ -64,50 +120,13 @@ export function DashboardClient({ metrics }: Props) {
           ))}
         </div>
 
-        {/* Recent work orders */}
-        <div className="grid grid-cols-3 gap-4">
-          <div className="col-span-2 bg-surface-0 border border-surface-3 rounded-xl overflow-hidden">
-            <div className="px-4 py-3 border-b border-surface-3 flex items-center justify-between">
-              <p className="text-[13px] font-medium text-text-primary">Órdenes activas</p>
-              <Link href="/service-orders" className="text-[11px] text-brand-300 hover:text-brand-200 transition-colors">
-                Ver todas →
-              </Link>
-            </div>
-            {isLoading ? (
-              <div className="p-6 text-center text-[12px] text-text-faint">Cargando...</div>
-            ) : activeOrders.length === 0 ? (
-              <div className="p-6 text-center text-[12px] text-text-faint">Sin órdenes activas</div>
-            ) : (
-              <div>
-                {activeOrders.map(order => {
-                  const client = order.profiles as { name: string; last_name: string } | undefined
-                  const vehicle = order.vehicles as { brand: string; model: string; year: number } | undefined
-                  return (
-                    <Link
-                      key={order.id}
-                      href={`/service-orders/${order.id}`}
-                      className="flex items-center gap-3 px-4 py-3 border-b border-surface-3/50 last:border-0 hover:bg-surface-2 transition-colors"
-                    >
-                      <div className="flex-shrink-0 w-[90px]">
-                        <p className="text-[12px] font-medium text-text-primary">{order.folio}</p>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[12px] text-text-primary truncate">
-                          {vehicle ? `${vehicle.brand} ${vehicle.model} ${vehicle.year}` : '—'}
-                        </p>
-                        <p className="text-[11px] text-text-faint">
-                          {client ? `${client.name} ${client.last_name}` : '—'}
-                        </p>
-                      </div>
-                      <WorkOrderBadge state={order.state} />
-                    </Link>
-                  )
-                })}
-              </div>
-            )}
+        {/* Orders + Alerts */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="lg:col-span-2">
+            {activeOrdersTable}
           </div>
 
-          {/* Alerts */}
+          {/* Inventory alerts */}
           <div className="bg-surface-0 border border-surface-3 rounded-xl overflow-hidden">
             <div className="px-4 py-3 border-b border-surface-3">
               <p className="text-[13px] font-medium text-text-primary">Alertas de inventario</p>
@@ -116,7 +135,7 @@ export function DashboardClient({ metrics }: Props) {
               <div className="p-5 text-center text-[12px] text-text-faint">Sin alertas</div>
             ) : (
               <div>
-                {lowStock.slice(0, 5).map((item) => (
+                {lowStock.slice(0, 5).map(item => (
                   <div key={item.id} className="flex items-start gap-3 px-4 py-3 border-b border-surface-3/50 last:border-0">
                     <div className="w-1.5 h-1.5 rounded-full bg-amber-400 mt-1.5 flex-shrink-0" />
                     <div className="min-w-0">

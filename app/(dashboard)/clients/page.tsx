@@ -3,24 +3,28 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { Topbar } from '@/components/layout/Topbar'
 import { useWorkshopStore } from '@/stores/workshop.store'
-import { getClients, createClient_ } from '@/services/clients'
+import { getClients, createClient_, CLIENTS_PAGE_SIZE } from '@/services/clients'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Search, Plus, Loader2, X } from 'lucide-react'
 import { TableLoader, TableBackdrop } from '@/components/shared/Loader'
+import { Pagination } from '@/components/shared/Pagination'
 import { toast } from '@/components/shared/Toast'
 
 export default function ClientsPage() {
   const { activeWorkshop } = useWorkshopStore()
   const qc = useQueryClient()
   const [search, setSearch] = useState('')
+  const [page, setPage]     = useState(1)
   const [showModal, setShowModal] = useState(false)
   const [form, setForm] = useState({ name: '', lastName: '', secondLastName: '', rfc: '', phone: '', email: '' })
 
-  const { data: clients, isLoading, isFetching } = useQuery({
-    queryKey: ['clients', activeWorkshop?.id],
-    queryFn: () => getClients(activeWorkshop!.id),
+  const { data: result, isLoading, isFetching } = useQuery({
+    queryKey: ['clients', activeWorkshop?.id, search, page],
+    queryFn: () => getClients(activeWorkshop!.id, { search: search || undefined, page }),
     enabled: !!activeWorkshop,
   })
+
+  const total = result?.total ?? 0
 
   const createMutation = useMutation({
     mutationFn: (data: typeof form) => createClient_({ ...data, workshopId: activeWorkshop!.id }),
@@ -33,18 +37,11 @@ export default function ClientsPage() {
     onError: (e) => toast.error('No se pudo registrar el cliente', e instanceof Error ? e.message : undefined),
   })
 
-  const filtered = (clients ?? []).filter(c => {
-    if (!search) return true
-    const s = search.toLowerCase()
-    return `${c.name} ${c.last_name}`.toLowerCase().includes(s) ||
-      c.rfc?.toLowerCase().includes(s)
-  })
-
   return (
     <div>
       <Topbar
         title="Clientes"
-        subtitle={`${clients?.length ?? 0} clientes registrados`}
+        subtitle={total > 0 ? `${total} clientes registrados` : undefined}
         actions={
           <button
             onClick={() => setShowModal(true)}
@@ -55,13 +52,13 @@ export default function ClientsPage() {
         }
       />
 
-      <div className="p-6">
+      <div className="p-4 md:p-6">
         <div className="relative mb-5 max-w-sm">
           <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-faint" />
           <input
             value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Buscar por nombre o RFC..."
+            onChange={e => { setSearch(e.target.value); setPage(1) }}
+            placeholder="Buscar por nombre, teléfono o RFC..."
             className="w-full bg-surface-0 border border-surface-3 rounded-lg pl-8 pr-3 py-1.5 text-[12px] text-text-primary placeholder:text-text-faint outline-none focus:border-brand-400 transition-colors"
           />
         </div>
@@ -70,15 +67,18 @@ export default function ClientsPage() {
           <TableBackdrop visible={isFetching && !isLoading} />
           {isLoading ? (
             <div className="p-8 text-center text-[12px] text-text-faint">Cargando...</div>
-          ) : filtered.length === 0 ? (
+          ) : (result?.data ?? []).length === 0 ? (
             <div className="p-8 text-center">
-              <p className="text-[13px] text-text-muted">Sin clientes registrados</p>
-              <button onClick={() => setShowModal(true)} className="mt-2 text-[12px] text-brand-300 hover:text-brand-200 transition-colors">
-                + Registrar primer cliente
-              </button>
+              <p className="text-[13px] text-text-muted">{search ? 'Sin resultados para tu búsqueda' : 'Sin clientes registrados'}</p>
+              {!search && (
+                <button onClick={() => setShowModal(true)} className="mt-2 text-[12px] text-brand-300 hover:text-brand-200 transition-colors">
+                  + Registrar primer cliente
+                </button>
+              )}
             </div>
           ) : (
-            <table className="w-full border-collapse">
+            <div className="overflow-x-auto">
+            <table className="w-full min-w-[500px] border-collapse">
               <thead>
                 <tr className="border-b border-surface-3">
                   {['Cliente', 'RFC', 'Contacto', 'Órdenes', ''].map(h => (
@@ -87,7 +87,7 @@ export default function ClientsPage() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map(client => {
+                {(result?.data ?? []).map(client => {
                   const phone = client.contacts?.find((c: { contact_type: string }) => c.contact_type === 'phone')
                   const email = client.contacts?.find((c: { contact_type: string }) => c.contact_type === 'email')
                   return (
@@ -107,7 +107,7 @@ export default function ClientsPage() {
                       <td className="px-4 py-3 text-[12px] text-text-muted">{phone?.contact ?? '—'}</td>
                       <td className="px-4 py-3 text-[12px] text-text-muted">—</td>
                       <td className="px-4 py-3">
-                        <Link href={`/clients/${client.id}`} className="text-[11px] text-brand-300 hover:text-brand-200 transition-colors">
+                        <Link href={`/clients/detail?id=${client.id}`} className="text-[11px] text-brand-300 hover:text-brand-200 transition-colors">
                           Ver →
                         </Link>
                       </td>
@@ -116,7 +116,9 @@ export default function ClientsPage() {
                 })}
               </tbody>
             </table>
+            </div>
           )}
+          <Pagination page={page} pageSize={CLIENTS_PAGE_SIZE} total={total} onPageChange={setPage} />
         </div>
       </div>
 
@@ -131,7 +133,7 @@ export default function ClientsPage() {
               </button>
             </div>
             <div className="p-5 space-y-3">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {[
                   { label: 'Nombre *', key: 'name', placeholder: 'Juan' },
                   { label: 'Apellido paterno *', key: 'lastName', placeholder: 'García' },
@@ -157,7 +159,7 @@ export default function ClientsPage() {
                 Cancelar
               </button>
               <button
-                onClick={() => createMutation.mutate({ name: form.name, lastName: form.lastName, secondLastName: form.secondLastName || undefined, rfc: form.rfc || undefined, phone: form.phone || undefined, email: form.email || undefined, workshopId: activeWorkshop!.id })}
+                onClick={() => createMutation.mutate(form)}
                 disabled={!form.name || !form.lastName || createMutation.isPending}
                 className="flex items-center gap-1.5 bg-brand-400 hover:bg-brand-300 disabled:opacity-50 text-brand-100 px-4 py-2 rounded-lg text-[12px] font-medium transition-colors"
               >

@@ -8,6 +8,7 @@ export async function getInvoices(params?: {
   dateFrom?: string
   dateTo?: string
   workshopId?: string
+  search?: string
 }) {
   const supabase = createClient()
   const page = params?.page ?? 1
@@ -16,7 +17,7 @@ export async function getInvoices(params?: {
 
   let query = supabase
     .from('invoices')
-    .select('*, profiles!invoices_client_id_fkey(name, last_name), work_orders(folio)', { count: 'exact' })
+    .select('*, profiles!invoices_client_id_fkey(id, name, last_name), work_orders(id, folio)', { count: 'exact' })
     .order('created_at', { ascending: false })
     .range(from, to)
 
@@ -24,6 +25,20 @@ export async function getInvoices(params?: {
   if (params?.status)     query = query.eq('status', params.status)
   if (params?.dateFrom)   query = query.gte('created_at', params.dateFrom)
   if (params?.dateTo)     query = query.lte('created_at', params.dateTo + 'T23:59:59')
+
+  if (params?.search) {
+    const s = `%${params.search}%`
+    const { data: matchingWOs } = await supabase
+      .from('work_orders')
+      .select('id')
+      .ilike('folio', s)
+    const woIds = (matchingWOs ?? []).map(wo => wo.id)
+    if (woIds.length > 0) {
+      query = query.or(`folio.ilike.${s},work_order_id.in.(${woIds.join(',')})`)
+    } else {
+      query = query.ilike('folio', s)
+    }
+  }
 
   const { data, error, count } = await query
   if (error) throw error
@@ -64,14 +79,68 @@ export async function createInvoiceFromWorkOrder(payload: {
 }) {
   const supabase = createClient()
 
-  // Return existing active invoice if one already exists for this work order
-  const { data: existing } = await supabase
+  // 1. Si existe un invoice activo, devolverlo directamente
+  const { data: active } = await supabase
     .from('invoices')
     .select('id')
     .eq('work_order_id', payload.workOrderId)
     .neq('status', 'cancelled')
     .maybeSingle()
-  if (existing) return existing
+  if (active) return active
+
+  // 2. Si existe un invoice cancelado, reactivarlo
+  const { data: cancelled } = await supabase
+    .from('invoices')
+    .select('id')
+    .eq('work_order_id', payload.workOrderId)
+    .eq('status', 'cancelled')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  // Fetch workshop tax_rate
+  const { data: workshop } = await supabase
+    .from('workshops')
+    .select('tax_rate')
+    .eq('id', payload.workshopId)
+    .single()
+  const taxRate = workshop?.tax_rate ?? 0.16
+
+  if (cancelled) {
+    const { data: woParts } = await supabase
+      .from('work_order_parts')
+      .select('*, parts(name)')
+      .eq('work_order_id', payload.workOrderId)
+
+    const items = (woParts ?? []).map(p => ({
+      description:  p.parts?.name ?? 'Refacción',
+      quantity:     p.quantity,
+      unit_price:   p.sale_price,
+      tax_rate:     taxRate,
+      item_type:    'part' as const,
+      reference_id: p.id,
+    }))
+
+    const subtotal  = items.reduce((s, i) => s + i.quantity * i.unit_price, 0)
+    const taxAmount = subtotal * taxRate
+
+    // Eliminar pagos anteriores (el invoice arranca limpio)
+    await supabase.from('payments').delete().eq('invoice_id', cancelled.id)
+
+    const { error: updError } = await supabase
+      .from('invoices')
+      .update({ status: 'issued', subtotal, tax_amount: taxAmount, issued_at: new Date().toISOString() })
+      .eq('id', cancelled.id)
+    if (updError) throw updError
+
+    if (items.length > 0) {
+      await supabase.from('invoice_items').insert(
+        items.map(i => ({ ...i, invoice_id: cancelled.id }))
+      )
+    }
+
+    return cancelled
+  }
 
   const { data: user } = await supabase.auth.getUser()
 
@@ -96,13 +165,13 @@ export async function createInvoiceFromWorkOrder(payload: {
     description:  p.parts?.name ?? 'Refacción',
     quantity:     p.quantity,
     unit_price:   p.sale_price,
-    tax_rate:     0.16,
+    tax_rate:     taxRate,
     item_type:    'part' as const,
     reference_id: p.id,
   }))
 
   const subtotal  = items.reduce((s, i) => s + i.quantity * i.unit_price, 0)
-  const taxAmount = items.reduce((s, i) => s + i.quantity * i.unit_price * i.tax_rate, 0)
+  const taxAmount = subtotal * taxRate
 
   const { data: invoice, error: invError } = await supabase
     .from('invoices')
@@ -119,7 +188,20 @@ export async function createInvoiceFromWorkOrder(payload: {
     })
     .select()
     .single()
-  if (invError) throw invError
+
+  if (invError) {
+    // Unique constraint violation — concurrent request already created it
+    if (invError.code === '23505') {
+      const { data: fallback } = await supabase
+        .from('invoices')
+        .select('id')
+        .eq('work_order_id', payload.workOrderId)
+        .neq('status', 'cancelled')
+        .maybeSingle()
+      if (fallback) return fallback
+    }
+    throw invError
+  }
 
   if (items.length > 0) {
     await supabase.from('invoice_items').insert(
@@ -137,7 +219,6 @@ export async function addInvoiceItem(payload: {
   description: string
   quantity: number
   unitPrice: number
-  taxRate: number
 }) {
   const supabase = createClient()
   const { error } = await supabase.rpc('add_invoice_item', {
@@ -147,7 +228,7 @@ export async function addInvoiceItem(payload: {
     p_description:  payload.description,
     p_quantity:     payload.quantity,
     p_unit_price:   payload.unitPrice,
-    p_tax_rate:     payload.taxRate,
+    p_tax_rate:     null,
   })
   if (error) throw new Error(error.message)
 }
@@ -174,10 +255,7 @@ export async function deleteInvoiceItem(itemId: string) {
 
 export async function cancelInvoice(invoiceId: string) {
   const supabase = createClient()
-  const { error } = await supabase
-    .from('invoices')
-    .update({ status: 'cancelled' })
-    .eq('id', invoiceId)
+  const { error } = await supabase.rpc('cancel_invoice', { p_invoice_id: invoiceId })
   if (error) throw error
 }
 
@@ -229,7 +307,7 @@ export async function getServiceCatalog(workshopId: string) {
   const supabase = createClient()
   const { data, error } = await supabase
     .from('service_catalog')
-    .select('*')
+    .select('id, name, description, default_price')
     .eq('workshop_id', workshopId)
     .eq('is_active', true)
     .order('name')
@@ -237,13 +315,22 @@ export async function getServiceCatalog(workshopId: string) {
   return data ?? []
 }
 
-export async function getDailyCashSummary(workshopId: string) {
+export const CASH_PAGE_SIZE = 20
+
+export async function getDailyCashSummary(workshopId: string, params?: { from?: string; to?: string; page?: number }) {
   const supabase = createClient()
-  const { data, error } = await supabase
+  const page = params?.page ?? 1
+  const from = (page - 1) * CASH_PAGE_SIZE
+  const to   = from + CASH_PAGE_SIZE - 1
+  let query = supabase
     .from('daily_cash_summary')
-    .select('*')
+    .select('*', { count: 'exact' })
     .eq('workshop_id', workshopId)
     .order('day', { ascending: false })
+    .range(from, to)
+  if (params?.from) query = query.gte('day', params.from)
+  if (params?.to)   query = query.lte('day', params.to)
+  const { data, error, count } = await query
   if (error) throw error
-  return data ?? []
+  return { data: data ?? [], total: count ?? 0 }
 }

@@ -1,6 +1,31 @@
 import { createClient } from '@/lib/supabase/client'
 import type { WorkOrderPart, WorkOrderState, HistoryNote } from '@/types/database'
 
+export async function addHistoryNote(payload: {
+  vehicleId: string
+  workOrderId: string
+  notes?: string
+  diagnostic?: string
+  services?: string
+}) {
+  const supabase = createClient()
+  const { data: user } = await supabase.auth.getUser()
+  const { data, error } = await supabase
+    .from('history_notes')
+    .insert({
+      vehicle_id:    payload.vehicleId,
+      work_order_id: payload.workOrderId,
+      notes:         payload.notes      ?? null,
+      diagnostic:    payload.diagnostic ?? null,
+      services:      payload.services   ?? null,
+      created_by:    user.user?.id      ?? null,
+    })
+    .select()
+    .single()
+  if (error) throw error
+  return data as HistoryNote
+}
+
 const HISTORY_PAGE_SIZE = 5
 
 export async function uploadWorkOrderPhoto(
@@ -34,12 +59,17 @@ export async function getHistoryNotes(vehicleId: string, page = 1) {
   const to   = from + HISTORY_PAGE_SIZE - 1
   const { data, error, count } = await supabase
     .from('history_notes')
-    .select('*', { count: 'exact' })
+    .select('*, work_orders(mechanic:profiles!work_orders_mechanic_id_fkey(name, last_name))', { count: 'exact' })
     .eq('vehicle_id', vehicleId)
     .order('created_at', { ascending: false })
     .range(from, to)
   if (error) throw error
-  return { data: (data ?? []) as HistoryNote[], total: count ?? 0 }
+  return {
+    data: (data ?? []) as (HistoryNote & {
+      work_orders: { mechanic: { name: string; last_name: string } | null } | null
+    })[],
+    total: count ?? 0,
+  }
 }
 
 export { HISTORY_PAGE_SIZE }
@@ -50,11 +80,12 @@ export type SortField = 'created_at' | 'folio'
 export type SortDir   = 'asc' | 'desc'
 
 export async function getWorkOrders(params?: {
-  state?:    WorkOrderState
-  page?:     number
-  pageSize?: number
-  sortField?: SortField
-  sortDir?:   SortDir
+  state?:        WorkOrderState
+  page?:         number
+  pageSize?:     number
+  sortField?:    SortField
+  sortDir?:      SortDir
+  assignedToMe?: boolean
 }) {
   const supabase  = createClient()
   const page      = params?.page      ?? 1
@@ -68,15 +99,24 @@ export async function getWorkOrders(params?: {
     .from('work_orders')
     .select(`
       *,
-      profiles!work_orders_client_id_fkey(name, last_name),
+      profiles!work_orders_client_id_fkey(id, name, last_name),
       vehicles(brand, model, year),
-      mechanics:profiles!work_orders_mechanic_id_fkey(name, last_name)
+      mechanics:profiles!work_orders_mechanic_id_fkey(name, last_name),
+      invoices(status, total)
     `, { count: 'exact' })
-    .eq('is_active', true)
     .order(sortField, { ascending: sortDir === 'asc' })
     .range(from, to)
 
-  if (params?.state) query = query.eq('state', params.state)
+  if (params?.state) {
+    query = query.eq('state', params.state)
+  } else {
+    query = query.eq('is_active', true)
+  }
+
+  if (params?.assignedToMe) {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) query = query.eq('mechanic_id', user.id)
+  }
 
   const { data, error, count } = await query
   if (error) throw error
@@ -91,9 +131,10 @@ export async function getWorkOrder(id: string) {
       *,
       profiles!work_orders_client_id_fkey(id, name, last_name, rfc),
       vehicles(*, history_notes(*)),
+      history_notes!history_notes_work_order_id_fkey(id),
       mechanics:profiles!work_orders_mechanic_id_fkey(id, name, last_name),
       work_order_parts(*, parts(name, sku, unit)),
-      invoices(id, status, total, payments(amount), invoice_items(id, description, quantity, unit_price, item_type, tax_amount, total))
+      invoices(id, status, total, payments(amount), invoice_items(id, description, quantity, unit_price, item_type, tax_amount, total, is_active))
     `)
     .eq('id', id)
     .single()
@@ -173,14 +214,11 @@ export async function updateWorkOrderState(id: string, state: WorkOrderState) {
 
 export async function updateWorkOrderMechanic(id: string, mechanicId: string) {
   const supabase = createClient()
-  const { data, error } = await supabase
-    .from('work_orders')
-    .update({ mechanic_id: mechanicId })
-    .eq('id', id)
-    .select()
-    .single()
+  const { error } = await supabase.rpc('set_work_order_mechanic', {
+    p_work_order_id: id,
+    p_mechanic_id:   mechanicId,
+  })
   if (error) throw error
-  return data
 }
 
 export async function recalculateWorkOrderTotal(workOrderId: string) {
@@ -195,10 +233,7 @@ export async function recalculateWorkOrderTotal(workOrderId: string) {
 
 export async function cancelWorkOrder(id: string) {
   const supabase = createClient()
-  const { error } = await supabase
-    .from('work_orders')
-    .update({ state: 'cancelled', is_active: false })
-    .eq('id', id)
+  const { error } = await supabase.rpc('cancel_work_order', { p_work_order_id: id })
   if (error) throw error
 }
 

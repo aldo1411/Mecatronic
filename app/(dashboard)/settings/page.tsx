@@ -13,6 +13,9 @@ import { cn } from '@/lib/utils'
 
 type Tab = 'workshop' | 'profile' | 'team'
 
+const TEAM_ROLES = ['owner', 'admin', 'receptionist', 'superadmin']
+const OWNER_ROLES = ['owner', 'superadmin']
+
 const ROLE_LABELS: Record<string, string> = {
   owner:         'Propietario',
   admin:         'Administrador',
@@ -27,23 +30,24 @@ function initials(name: string, lastName: string) {
 
 // ─── Tab: Datos del taller ────────────────────────────────────────────────────
 
-function WorkshopTab({ workshopId }: { workshopId: string }) {
+function WorkshopTab({ workshopId, canEdit }: { workshopId: string; canEdit: boolean }) {
   const { data: ws, isLoading } = useWorkshop(workshopId)
   const update = useUpdateWorkshop(workshopId)
   const uploadLogo = useUploadWorkshopLogo(workshopId)
   const fileRef = useRef<HTMLInputElement>(null)
 
-  const [form, setForm] = useState({ name: '', rfc: '', phone: '', address: '' })
+  const [form, setForm] = useState({ name: '', rfc: '', phone: '', address: '', taxRate: '' })
   const [initialized, setInitialized] = useState(false)
 
   if (ws && !initialized) {
-    setForm({ name: ws.name, rfc: ws.rfc ?? '', phone: ws.phone ?? '', address: ws.address ?? '' })
+    setForm({ name: ws.name, rfc: ws.rfc ?? '', phone: ws.phone ?? '', address: ws.address ?? '', taxRate: String(ws.tax_rate * 100) })
     setInitialized(true)
   }
 
   function handleSave() {
+    const taxRateNum = parseFloat(form.taxRate)
     update.mutate(
-      { name: form.name, rfc: form.rfc || null, phone: form.phone || null, address: form.address || null },
+      { name: form.name, rfc: form.rfc || null, phone: form.phone || null, address: form.address || null, tax_rate: !isNaN(taxRateNum) ? taxRateNum / 100 : undefined },
       {
         onSuccess: () => toast.success('Cambios guardados'),
         onError: (e) => toast.error('Error al guardar', e instanceof Error ? e.message : undefined),
@@ -100,16 +104,37 @@ function WorkshopTab({ workshopId }: { workshopId: string }) {
         <Field label="RFC" value={form.rfc} onChange={v => setForm(p => ({ ...p, rfc: v }))} placeholder="TAL123456ABC" />
         <Field label="Teléfono" value={form.phone} onChange={v => setForm(p => ({ ...p, phone: v }))} placeholder="81 1234 5678" />
         <Field label="Dirección" value={form.address} onChange={v => setForm(p => ({ ...p, address: v }))} placeholder="Av. Constitución 100, Monterrey, NL" />
+        <div>
+          <label className="block text-[10px] text-text-faint uppercase tracking-wider mb-1">IVA (%)</label>
+          <div className="relative">
+            <input
+              type="number"
+              min="0"
+              max="100"
+              step="0.01"
+              value={form.taxRate}
+              onChange={e => setForm(p => ({ ...p, taxRate: e.target.value }))}
+              placeholder="16"
+              className="w-full bg-surface-2 border border-surface-3 rounded-lg px-3 py-2 pr-8 text-[12px] text-text-primary placeholder:text-text-faint outline-none focus:border-brand-400 transition-colors"
+            />
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[12px] text-text-faint">%</span>
+          </div>
+          <p className="text-[10px] text-text-faint mt-1">Se aplica al calcular el total de las órdenes de cobro</p>
+        </div>
       </div>
 
-      <button
-        onClick={handleSave}
-        disabled={!form.name || update.isPending}
-        className="flex items-center gap-1.5 bg-brand-400 hover:bg-brand-300 disabled:opacity-50 text-brand-100 px-4 py-2 rounded-lg text-[12px] font-medium transition-colors"
-      >
-        {update.isPending && <Loader2 size={12} className="animate-spin" />}
-        Guardar cambios
-      </button>
+      {canEdit ? (
+        <button
+          onClick={handleSave}
+          disabled={!form.name || update.isPending}
+          className="flex items-center gap-1.5 bg-brand-400 hover:bg-brand-300 disabled:opacity-50 text-brand-100 px-4 py-2 rounded-lg text-[12px] font-medium transition-colors"
+        >
+          {update.isPending && <Loader2 size={12} className="animate-spin" />}
+          Guardar cambios
+        </button>
+      ) : (
+        <p className="text-[11px] text-text-faint">Solo el propietario puede editar los datos del taller.</p>
+      )}
     </div>
   )
 }
@@ -168,7 +193,7 @@ function ProfileTab() {
       {/* Nombre */}
       <div className="space-y-4">
         <p className="text-[11px] text-text-faint uppercase tracking-wider">Información personal</p>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label="Nombre *" value={form.name} onChange={v => setForm(p => ({ ...p, name: v }))} placeholder="Juan" />
           <Field label="Apellido paterno *" value={form.last_name} onChange={v => setForm(p => ({ ...p, last_name: v }))} placeholder="García" />
           <div className="col-span-2">
@@ -227,9 +252,16 @@ function TeamTab({ workshopId }: { workshopId: string }) {
   const [inviteForm, setInviteForm] = useState({ email: '', name: '', last_name: '', role: 'mechanic' as 'admin' | 'mechanic' | 'receptionist' })
 
   function handleInvite() {
+    const email = inviteForm.email
     invite.mutate(inviteForm, {
-      onSuccess: () => {
-        toast.success('Invitación enviada', `Se envió un correo a ${inviteForm.email}`)
+      onSuccess: (result) => {
+        if (result?.alreadyMember) {
+          toast.success('Ya es miembro', `${email} ya forma parte activa del taller`)
+        } else if (result?.alreadyRegistered) {
+          toast.success('Miembro agregado', `${email} fue agregado al taller. Notifícale que ya puede iniciar sesión con su cuenta existente`)
+        } else {
+          toast.success('Invitación enviada', `Se envió un correo de invitación a ${email}`)
+        }
         setShowInvite(false)
         setInviteForm({ email: '', name: '', last_name: '', role: 'mechanic' })
       },
@@ -304,7 +336,7 @@ function TeamTab({ workshopId }: { workshopId: string }) {
             </div>
             <div className="p-5 space-y-3">
               <Field label="Correo electrónico *" value={inviteForm.email} onChange={v => setInviteForm(p => ({ ...p, email: v }))} placeholder="nombre@correo.com" type="email" />
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Field label="Nombre *" value={inviteForm.name} onChange={v => setInviteForm(p => ({ ...p, name: v }))} placeholder="Juan" />
                 <Field label="Apellido *" value={inviteForm.last_name} onChange={v => setInviteForm(p => ({ ...p, last_name: v }))} placeholder="García" />
               </div>
@@ -416,23 +448,26 @@ function SectionLoader() {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-const TABS: { id: Tab; label: string }[] = [
+const ALL_TABS: { id: Tab; label: string; roles?: string[] }[] = [
   { id: 'workshop', label: 'Taller' },
   { id: 'profile',  label: 'Mi perfil' },
-  { id: 'team',     label: 'Equipo' },
+  { id: 'team',     label: 'Equipo', roles: TEAM_ROLES },
 ]
 
 export default function SettingsPage() {
-  const { activeWorkshop } = useWorkshopStore()
+  const { activeWorkshop, activeRole } = useWorkshopStore()
   const [tab, setTab] = useState<Tab>('workshop')
+
+  const canEditWorkshop = !!activeRole && OWNER_ROLES.includes(activeRole)
+  const tabs = ALL_TABS.filter(t => !t.roles || (activeRole && t.roles.includes(activeRole)))
 
   return (
     <div>
       <Topbar title="Configuración" />
-      <div className="p-6">
+      <div className="p-4 md:p-6">
         {/* Tab nav */}
         <div className="flex gap-1 mb-6 border-b border-surface-3">
-          {TABS.map(t => (
+          {tabs.map(t => (
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
@@ -449,7 +484,7 @@ export default function SettingsPage() {
         </div>
 
         {/* Tab content */}
-        {tab === 'workshop' && activeWorkshop && <WorkshopTab workshopId={activeWorkshop.id} />}
+        {tab === 'workshop' && activeWorkshop && <WorkshopTab workshopId={activeWorkshop.id} canEdit={canEditWorkshop} />}
         {tab === 'profile'  && <ProfileTab />}
         {tab === 'team'     && activeWorkshop && <TeamTab workshopId={activeWorkshop.id} />}
       </div>

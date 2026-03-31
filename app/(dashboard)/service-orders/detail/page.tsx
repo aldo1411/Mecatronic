@@ -1,5 +1,5 @@
 'use client'
-import { useParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useState, useRef, useMemo } from 'react'
 import { Topbar } from '@/components/layout/Topbar'
@@ -10,15 +10,15 @@ import {
   useWorkOrder, useUpdateWorkOrderState, useUpdateWorkOrderMechanic,
   useWorkshopMechanics, useUploadWorkOrderPhoto, useDeleteWorkOrderPhoto,
   useHistoryNotes, HISTORY_PAGE_SIZE, useAddWorkOrderPart,
-  useCancelWorkOrder,
+  useCancelWorkOrder, useAddHistoryNote,
 } from '@/hooks/useWorkOrders'
 import { useParts } from '@/hooks/useInventory'
-import { useServiceCatalog } from '@/hooks/useBilling'
+import { useServiceCatalog, useCreateInvoiceFromWorkOrder } from '@/hooks/useBilling'
 import { useWorkshopStore } from '@/stores/workshop.store'
 import { toast } from '@/components/shared/Toast'
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/utils'
 import type { WorkOrderState, WorkOrderPart, HistoryNote } from '@/types/database'
-import { ChevronLeft, Camera, Plus, X, Check, Loader2, Trash2, History, Ban, Printer, Banknote } from 'lucide-react'
+import { ChevronLeft, Camera, Plus, X, Check, Loader2, Trash2, History, Ban, Printer, Banknote, NotebookPen } from 'lucide-react'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
 function photoUrl(path: string) {
@@ -112,9 +112,14 @@ function HistoryDialog({
   )
 }
 
-function HistoryNoteCard({ note, isFirst }: { note: HistoryNote; isFirst: boolean }) {
+type HistoryNoteWithMechanic = HistoryNote & {
+  work_orders?: { mechanic: { name: string; last_name: string } | null } | null
+}
+
+function HistoryNoteCard({ note, isFirst }: { note: HistoryNoteWithMechanic; isFirst: boolean }) {
   const [expanded, setExpanded] = useState(isFirst)
   const hasContent = note.diagnostic || note.services || note.notes || (note.photos?.length ?? 0) > 0
+  const mechanic = (note.work_orders as { mechanic: { name: string; last_name: string } | null } | null)?.mechanic
 
   return (
     <div className="border border-surface-3 rounded-xl overflow-hidden">
@@ -126,6 +131,9 @@ function HistoryNoteCard({ note, isFirst }: { note: HistoryNote; isFirst: boolea
           <div className="w-1.5 h-1.5 rounded-full bg-brand-300 flex-shrink-0" />
           <div>
             <p className="text-[13px] font-medium text-text-primary">{formatDate(note.created_at)}</p>
+            {mechanic && (
+              <p className="text-[11px] text-text-faint">Mecánico: {mechanic.name} {mechanic.last_name}</p>
+            )}
             {note.kilometers != null && (
               <p className="text-[11px] text-text-faint">{note.kilometers.toLocaleString()} km</p>
             )}
@@ -182,7 +190,7 @@ type PartOption = {
   id: string; name: string; sku: string | null; unit: string; sale_price: number
   inventory_stock: { quantity_on_hand: number; average_cost: number }[] | null
 }
-type ServiceOption = { id: string; name: string; default_price: number; tax_rate: number }
+type ServiceOption = { id: string; name: string; default_price: number }
 
 const ORIGIN_OPTIONS: { value: 'stock' | 'special_order' | 'client_provided'; label: string }[] = [
   { value: 'stock',           label: 'Inventario' },
@@ -521,22 +529,100 @@ function AddItemModal({ workOrderId, onClose }: { workOrderId: string; onClose: 
   )
 }
 
+// ─── Add history note modal ───────────────────────────────────────────────────
+
+function AddHistoryNoteModal({
+  vehicleId,
+  workOrderId,
+  onClose,
+}: {
+  vehicleId: string
+  workOrderId: string
+  onClose: () => void
+}) {
+  const addNote = useAddHistoryNote()
+  const [form, setForm] = useState({ notes: '', diagnostic: '', services: '' })
+
+  function handleSave() {
+    addNote.mutate(
+      { vehicleId, workOrderId, ...form },
+      {
+        onSuccess: () => {
+          toast.success('Nota registrada', 'El historial del vehículo fue actualizado')
+          onClose()
+        },
+        onError: (e) => toast.error('Error', e instanceof Error ? e.message : 'No se pudo guardar la nota'),
+      }
+    )
+  }
+
+  const fields: { label: string; key: keyof typeof form; placeholder: string }[] = [
+    { label: 'Diagnóstico final', key: 'diagnostic', placeholder: 'Descripción del diagnóstico...' },
+    { label: 'Servicio realizado', key: 'services',   placeholder: 'Servicios realizados...' },
+    { label: 'Notas adicionales', key: 'notes',       placeholder: 'Observaciones...' },
+  ]
+
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+      <div className="bg-surface-0 border border-surface-3 rounded-xl w-full max-w-lg animate-fadeIn">
+        <div className="px-5 py-4 border-b border-surface-3 flex items-center justify-between">
+          <h2 className="text-[15px] font-medium text-text-primary">Agregar nota de historial</h2>
+          <button onClick={onClose} className="text-text-faint hover:text-text-muted transition-colors">
+            <X size={16} />
+          </button>
+        </div>
+        <div className="p-5 space-y-3">
+          {fields.map(({ label, key, placeholder }) => (
+            <div key={key}>
+              <label className="block text-[10px] text-text-faint uppercase tracking-wider mb-1">{label}</label>
+              <textarea
+                value={form[key]}
+                onChange={e => setForm(p => ({ ...p, [key]: e.target.value }))}
+                placeholder={placeholder}
+                rows={3}
+                className={INPUT + ' resize-none'}
+              />
+            </div>
+          ))}
+        </div>
+        <div className="px-5 pb-5 flex gap-2 justify-end">
+          <button onClick={onClose} className="px-4 py-2 text-[12px] text-text-muted hover:text-text-primary transition-colors">
+            Cancelar
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={addNote.isPending || (!form.notes && !form.diagnostic && !form.services)}
+            className="flex items-center gap-1.5 bg-brand-400 hover:bg-brand-300 disabled:opacity-50 text-brand-100 px-4 py-2 rounded-lg text-[12px] font-medium transition-colors"
+          >
+            {addNote.isPending && <Loader2 size={12} className="animate-spin" />}
+            Guardar nota
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
-export default function ServiceOrderDetailPage() {
-  const { id }               = useParams<{ id: string }>()
-  const { activeWorkshop }   = useWorkshopStore()
+function ServiceOrderDetailPage() {
+  const id = useSearchParams().get('id') ?? ''
+  const router = useRouter()
+  const { activeWorkshop, activeRole } = useWorkshopStore()
+  const isMechanic = activeRole === 'mechanic'
   const { data: order, isLoading } = useWorkOrder(id)
   const updateState    = useUpdateWorkOrderState()
   const updateMechanic = useUpdateWorkOrderMechanic()
   const { data: mechanics } = useWorkshopMechanics()
   const uploadPhoto  = useUploadWorkOrderPhoto(id, activeWorkshop?.id ?? '')
   const deletePhoto  = useDeleteWorkOrderPhoto(id)
+  const createInvoice = useCreateInvoiceFromWorkOrder()
 
   const cancelOrder  = useCancelWorkOrder()
 
   const [showMechanicPicker, setShowMechanicPicker] = useState(false)
   const [showHistory, setShowHistory]               = useState(false)
+  const [showAddHistory, setShowAddHistory]         = useState(false)
   const [lightboxSrc, setLightboxSrc]               = useState<string | null>(null)
   const [showAddItem, setShowAddItem]               = useState(false)
   const [confirmCancel, setConfirmCancel]           = useState(false)
@@ -552,7 +638,7 @@ export default function ServiceOrderDetailPage() {
   const photos   = (order.photos ?? []) as string[]
 
   const currentStateIdx = STATE_ORDER.indexOf(order.state)
-  const transition      = STATE_TRANSITIONS[order.state]
+  const transition      = STATE_TRANSITIONS[order.state as WorkOrderState]
   const vehicleLabel    = vehicle ? `${vehicle.brand} ${vehicle.model} ${vehicle.year}` : ''
 
   const subtotal = parts.reduce((s, p) => s + p.sale_price * p.quantity, 0)
@@ -560,7 +646,7 @@ export default function ServiceOrderDetailPage() {
   const total    = subtotal + tax
 
   // Derivar estado del cobro directamente desde order.invoices (siempre fresco)
-  type InvoiceItem = { id: string; description: string; quantity: number; unit_price: number; item_type: string; tax_amount: number; total: number }
+  type InvoiceItem = { id: string; description: string; quantity: number; unit_price: number; item_type: string; tax_amount: number; total: number; is_active: boolean }
   type InvoiceSnap  = { id: string; status: string; total: number; payments: { amount: number }[]; invoice_items?: InvoiceItem[] }
   const activeInvoices = ((order.invoices ?? []) as InvoiceSnap[]).filter(inv => inv.status !== 'cancelled')
   const hasInvoice     = activeInvoices.length > 0
@@ -571,24 +657,31 @@ export default function ServiceOrderDetailPage() {
   })
 
   const activeInvoice  = activeInvoices[0]
-  const invoiceItems   = (activeInvoice?.invoice_items ?? []) as InvoiceItem[]
+  const invoiceItems   = ((activeInvoice?.invoice_items ?? []) as InvoiceItem[]).filter(i => i.is_active)
   const showFromInvoice = hasInvoice
 
-  const blockDelivery      = transition?.next === 'delivered' && (!hasInvoice || !isFullyPaid)
-  const blockDeliveryTitle = !hasInvoice
-    ? 'Genera el cobro antes de registrar la entrega'
-    : !isFullyPaid
-      ? 'El cobro tiene saldo pendiente — registra el pago primero'
-      : undefined
+  const workOrderNotes = (order.history_notes ?? []) as { id: string }[]
+  const hasWorkOrderNote   = workOrderNotes.length > 0
+
+  const blockDelivery      = transition?.next === 'delivered' && (!hasInvoice || !isFullyPaid || !hasWorkOrderNote)
+  const blockDeliveryTitle = !hasWorkOrderNote
+    ? 'Registra la nota de historial antes de entregar'
+    : !hasInvoice
+      ? 'Genera el cobro antes de registrar la entrega'
+      : !isFullyPaid
+        ? 'El cobro tiene saldo pendiente — registra el pago primero'
+        : undefined
 
   function handleStateChange() {
     if (!transition) return
-    if (transition.next === 'delivered' && (!hasInvoice || !isFullyPaid)) {
+    if (transition.next === 'delivered' && (!hasWorkOrderNote || !hasInvoice || !isFullyPaid)) {
       toast.error(
-        !hasInvoice ? 'Sin cobro generado' : 'Cobro pendiente',
-        !hasInvoice
-          ? 'Genera el cobro antes de registrar la entrega.'
-          : 'La OS tiene un saldo pendiente. Registra el pago antes de marcarla como entregada.'
+        !hasWorkOrderNote ? 'Sin nota de historial' : !hasInvoice ? 'Sin cobro generado' : 'Cobro pendiente',
+        !hasWorkOrderNote
+          ? 'Registra la nota de historial del vehículo antes de entregar.'
+          : !hasInvoice
+            ? 'Genera el cobro antes de registrar la entrega.'
+            : 'La OS tiene un saldo pendiente. Registra el pago antes de marcarla como entregada.'
       )
       return
     }
@@ -596,6 +689,16 @@ export default function ServiceOrderDetailPage() {
       { id: order!.id, state: transition.next },
       { onSuccess: () => toast.success('Estado actualizado', `La orden pasó a "${transition.label}"`) },
     )
+  }
+
+  async function handleCobrar() {
+    if (!activeWorkshop) return
+    try {
+      const invoice = await createInvoice.mutateAsync({ workOrderId: order!.id, workshopId: activeWorkshop.id })
+      router.push(`/billing/detail?id=${invoice.id}`)
+    } catch {
+      toast.error('Error al generar cobro')
+    }
   }
 
   async function handleCancelOrder() {
@@ -652,11 +755,11 @@ export default function ServiceOrderDetailPage() {
         title={order.folio}
         subtitle={`Creada ${formatDateTime(order.created_at)}`}
         actions={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2 justify-end">
             <Link href="/service-orders" className="flex items-center gap-1 px-3 py-1.5 text-[12px] text-text-muted hover:text-text-primary transition-colors">
               <ChevronLeft size={13} /> Volver
             </Link>
-            {order.state !== 'cancelled' && order.state !== 'delivered' && (
+            {!isMechanic && order.state !== 'cancelled' && order.state !== 'delivered' && (
               <button
                 onClick={() => setConfirmCancel(true)}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-red-950 border border-red-800 hover:bg-red-900 text-red-400 rounded-lg text-[12px] transition-colors"
@@ -667,15 +770,25 @@ export default function ServiceOrderDetailPage() {
             <button className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-2 border border-surface-3 rounded-lg text-[12px] text-text-muted hover:text-text-primary transition-colors">
               <Printer size={13} /> Imprimir
             </button>
-            {order.state === 'ready' && (
-              <Link
-                href={hasInvoice ? `/billing/${activeInvoice!.id}` : `/billing?workOrderId=${order.id}`}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-950 border border-emerald-800 hover:bg-emerald-900 text-emerald-400 rounded-lg text-[12px] font-medium transition-colors"
+            {order.state === 'ready' && !hasWorkOrderNote && (
+              <button
+                onClick={() => setShowAddHistory(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-950 border border-amber-800 hover:bg-amber-900 text-amber-400 rounded-lg text-[12px] font-medium transition-colors"
               >
-                <Banknote size={13} /> Cobrar
-              </Link>
+                <NotebookPen size={13} /> Agregar historial
+              </button>
             )}
-            {transition && (
+            {!isMechanic && order.state === 'ready' && hasWorkOrderNote && (
+              <button
+                onClick={handleCobrar}
+                disabled={createInvoice.isPending}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-950 border border-emerald-800 hover:bg-emerald-900 disabled:opacity-50 text-emerald-400 rounded-lg text-[12px] font-medium transition-colors"
+              >
+                {createInvoice.isPending ? <Loader2 size={13} className="animate-spin" /> : <Banknote size={13} />}
+                Cobrar
+              </button>
+            )}
+            {transition && transition.next !== 'delivered' && (
               <button
                 onClick={handleStateChange}
                 disabled={updateState.isPending || blockDelivery}
@@ -690,18 +803,18 @@ export default function ServiceOrderDetailPage() {
       />
 
       {/* Status bar */}
-      <div className="px-6 py-2.5 border-b border-surface-3 bg-surface-0 flex items-center gap-3">
+      <div className="px-4 md:px-6 py-2.5 border-b border-surface-3 bg-surface-0 flex flex-wrap items-center gap-2 md:gap-3">
         <WorkOrderBadge state={order.state} />
-        <span className="text-text-faint text-[11px]">·</span>
+        <span className="text-text-faint text-[11px] hidden sm:inline">·</span>
         <span className="text-[12px] text-text-faint">Entrega est. {formatDate(order.estimated_delivery)}</span>
-        <span className="text-text-faint text-[11px]">·</span>
-        <span className="text-[12px] font-mono text-text-faint">{order.folio}</span>
+        <span className="text-text-faint text-[11px] hidden sm:inline">·</span>
+        <span className="text-[12px] font-mono text-text-faint hidden sm:inline">{order.folio}</span>
       </div>
 
-      <div className="p-6">
-        <div className="grid grid-cols-3 gap-4">
+      <div className="p-4 md:p-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Main */}
-          <div className="col-span-2 space-y-4">
+          <div className="lg:col-span-2 space-y-4">
             {/* Vehicle & client */}
             <div className="bg-surface-0 border border-surface-3 rounded-xl overflow-hidden">
               <div className="px-4 py-3 border-b border-surface-3 flex items-center justify-between">
@@ -790,14 +903,17 @@ export default function ServiceOrderDetailPage() {
             <div className="bg-surface-0 border border-surface-3 rounded-xl overflow-hidden">
               <div className="px-4 py-3 border-b border-surface-3 flex items-center justify-between">
                 <p className="text-[11px] font-medium text-text-faint uppercase tracking-wider">Refacciones y servicios</p>
-                <Link
-                  href={hasInvoice ? `/billing/${activeInvoice!.id}` : `/billing?workOrderId=${order.id}`}
-                  className="flex items-center gap-1 text-[11px] text-brand-300 hover:text-brand-200 transition-colors"
-                >
-                  Gestionar en cobro →
-                </Link>
+                {!isMechanic && hasInvoice && (
+                  <Link
+                    href={`/billing/detail?id=${activeInvoice!.id}`}
+                    className="flex items-center gap-1 text-[11px] text-brand-300 hover:text-brand-200 transition-colors"
+                  >
+                    Gestionar en cobro →
+                  </Link>
+                )}
               </div>
-              <table className="w-full border-collapse">
+              <div className="overflow-x-auto">
+              <table className="w-full min-w-[400px] border-collapse">
                 <thead>
                   <tr className="border-b border-surface-3/50">
                     {['Descripción', showFromInvoice ? 'Tipo' : 'Origen', 'Cant.', 'Precio unit.', 'Total'].map(h => (
@@ -844,6 +960,7 @@ export default function ServiceOrderDetailPage() {
                   )}
                 </tbody>
               </table>
+              </div>
               <div className="px-4 py-3 border-t border-surface-3 space-y-1.5">
                 {showFromInvoice ? (
                   <>
@@ -872,12 +989,14 @@ export default function ServiceOrderDetailPage() {
             <div className="bg-surface-0 border border-surface-3 rounded-xl overflow-hidden">
               <div className="px-4 py-3 border-b border-surface-3 flex items-center justify-between">
                 <p className="text-[11px] font-medium text-text-faint uppercase tracking-wider">Mecánico</p>
-                <button
-                  onClick={() => setShowMechanicPicker(!showMechanicPicker)}
-                  className="text-[11px] text-brand-300 hover:text-brand-200 transition-colors"
-                >
-                  {showMechanicPicker ? 'Cancelar' : 'Cambiar'}
-                </button>
+                {!isMechanic && (
+                  <button
+                    onClick={() => setShowMechanicPicker(!showMechanicPicker)}
+                    className="text-[11px] text-brand-300 hover:text-brand-200 transition-colors"
+                  >
+                    {showMechanicPicker ? 'Cancelar' : 'Cambiar'}
+                  </button>
+                )}
               </div>
               <div className="p-4">
                 {mechanic ? (
@@ -1000,6 +1119,15 @@ export default function ServiceOrderDetailPage() {
         />
       )}
 
+      {/* Add history note modal */}
+      {showAddHistory && vehicle && (
+        <AddHistoryNoteModal
+          vehicleId={vehicle.id}
+          workOrderId={order.id}
+          onClose={() => setShowAddHistory(false)}
+        />
+      )}
+
       {/* Lightbox */}
       {lightboxSrc && (
         <div
@@ -1019,4 +1147,9 @@ export default function ServiceOrderDetailPage() {
       )}
     </div>
   )
+}
+
+import { Suspense } from 'react'
+export default function Page() {
+  return <Suspense><ServiceOrderDetailPage /></Suspense>
 }
