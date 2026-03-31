@@ -144,7 +144,7 @@ export async function inviteTeamMember(payload: {
   name: string
   last_name: string
   role: 'admin' | 'mechanic' | 'receptionist'
-}): Promise<void> {
+}): Promise<{ alreadyRegistered?: boolean }> {
   const supabase = createClient()
   const { data: { session }, error: sessionError } = await supabase.auth.refreshSession()
   if (sessionError || !session) throw new Error('No active session')
@@ -164,6 +164,7 @@ export async function inviteTeamMember(payload: {
     const err = await res.json().catch(() => ({ error: res.statusText }))
     throw new Error(err.error ?? 'Error al invitar usuario')
   }
+  return res.json()
 }
 
 // ─── Roles (para selects) ─────────────────────────────────────────────────────

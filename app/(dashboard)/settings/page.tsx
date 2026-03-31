@@ -252,9 +252,14 @@ function TeamTab({ workshopId }: { workshopId: string }) {
   const [inviteForm, setInviteForm] = useState({ email: '', name: '', last_name: '', role: 'mechanic' as 'admin' | 'mechanic' | 'receptionist' })
 
   function handleInvite() {
+    const email = inviteForm.email
     invite.mutate(inviteForm, {
-      onSuccess: () => {
-        toast.success('Invitación enviada', `Se envió un correo a ${inviteForm.email}`)
+      onSuccess: (result) => {
+        if (result?.alreadyRegistered) {
+          toast.success('Miembro agregado', `${email} ya tenía cuenta y fue agregado al taller`)
+        } else {
+          toast.success('Invitación enviada', `Se envió un correo de invitación a ${email}`)
+        }
         setShowInvite(false)
         setInviteForm({ email: '', name: '', last_name: '', role: 'mechanic' })
       },
