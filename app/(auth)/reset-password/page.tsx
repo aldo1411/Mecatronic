@@ -15,16 +15,28 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    // Supabase auto-parses the #access_token from the URL hash on createClient().
-    // PASSWORD_RECOVERY  → reset password flow
-    // SIGNED_IN + type=invite → new user accepting invite, also needs to set password
+    // Supabase parses #access_token from the hash when createClient() is called.
+    // The SIGNED_IN / PASSWORD_RECOVERY event may fire before onAuthStateChange
+    // is registered, so we also check getSession() directly as a fallback.
     const supabase = createClient()
     const hash = typeof window !== 'undefined' ? window.location.hash : ''
     const fromInvite = hash.includes('type=invite')
+    const fromRecovery = hash.includes('type=recovery')
     if (fromInvite) setIsInvite(true)
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && fromInvite)) {
+    // Fallback: session may already be set by the time we check
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session && (fromInvite || fromRecovery)) {
+        setReady(true)
+      }
+    })
+
+    // Listener for cases where event fires after registration
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setReady(true)
+      }
+      if (event === 'SIGNED_IN' && fromInvite && session) {
         setReady(true)
       }
     })
