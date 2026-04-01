@@ -255,8 +255,10 @@ function TeamTab({ workshopId }: { workshopId: string }) {
     const email = inviteForm.email
     invite.mutate(inviteForm, {
       onSuccess: (result) => {
-        if (result?.alreadyRegistered) {
-          toast.success('Miembro agregado', `${email} ya tenía cuenta y fue agregado al taller`)
+        if (result?.alreadyMember) {
+          toast.success('Ya es miembro', `${email} ya forma parte activa del taller`)
+        } else if (result?.alreadyRegistered) {
+          toast.success('Miembro agregado', `${email} fue agregado al taller. Notifícale que ya puede iniciar sesión con su cuenta existente`)
         } else {
           toast.success('Invitación enviada', `Se envió un correo de invitación a ${email}`)
         }

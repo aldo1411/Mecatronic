@@ -8,6 +8,7 @@ export default function ResetPasswordPage() {
   const router = useRouter()
   const [ready, setReady] = useState(false)
   const [isInvite, setIsInvite] = useState(false)
+  const [tokenExpired, setTokenExpired] = useState(false)
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -15,30 +16,49 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    // createClient() processes the #access_token hash immediately, replacing any
-    // existing session with the invite/recovery session BEFORE onAuthStateChange fires.
-    // We must NOT use getSession() here — it could return a stale existing session
-    // (e.g. a previously logged-in user) and cause updateUser() to run on the wrong account.
-    //
-    // Instead we rely solely on onAuthStateChange:
-    //   INITIAL_SESSION — fires immediately on registration with the post-hash session
-    //   PASSWORD_RECOVERY — fires for reset links
-    //   SIGNED_IN — fires for invite links if processed after listener registration
+    // createBrowserClient (@supabase/ssr) does NOT auto-process the URL hash fragment.
+    // We must parse the tokens manually and call setSession() ourselves.
+    // Register the listener BEFORE calling setSession so we never miss the SIGNED_IN event.
     const supabase = createClient()
     const hash = typeof window !== 'undefined' ? window.location.hash : ''
-    const fromInvite = hash.includes('type=invite')
-    const fromRecovery = hash.includes('type=recovery')
+
+    // URLSearchParams handles percent-encoding correctly
+    const params      = new URLSearchParams(hash.slice(1))
+    const accessToken  = params.get('access_token')
+    const refreshToken = params.get('refresh_token') ?? ''
+    const type         = params.get('type') // 'invite' | 'recovery' | null
+
+    const fromInvite = type === 'invite'
     if (fromInvite) setIsInvite(true)
 
+    // No access_token → invalid/direct navigation, show error immediately
+    if (!accessToken) {
+      setTokenExpired(true)
+      return
+    }
+
+    // Ignore INITIAL_SESSION to prevent a pre-existing logged-in session from
+    // hijacking the form. Only SIGNED_IN fired by our explicit setSession() call
+    // (or PASSWORD_RECOVERY as a safety net) is accepted.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'PASSWORD_RECOVERY') {
-        setReady(true)
-      }
-      if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session && (fromInvite || fromRecovery)) {
+      if ((event === 'SIGNED_IN' || event === 'PASSWORD_RECOVERY') && session) {
         setReady(true)
       }
     })
-    return () => subscription.unsubscribe()
+
+    // Exchange the hash tokens for a live session.
+    // Success → SIGNED_IN fires above → form shows.
+    // Error   → token expired/invalid → show error immediately (no need to wait 8s).
+    supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
+      .then(({ error }) => { if (error) setTokenExpired(true) })
+
+    // Safety-net in case neither the event nor the setSession error fires within 8s
+    const timeout = setTimeout(() => setTokenExpired(true), 8000)
+
+    return () => {
+      subscription.unsubscribe()
+      clearTimeout(timeout)
+    }
   }, [])
 
   async function handleSubmit(e: React.FormEvent) {
@@ -81,9 +101,24 @@ export default function ResetPasswordPage() {
 
         <div className="bg-surface-0 border border-surface-3 rounded-xl p-6">
           {!ready ? (
-            <div className="flex flex-col items-center gap-3 py-6">
-              <Loader2 size={20} className="animate-spin text-brand-300" />
-              <p className="text-[13px] text-text-muted">Verificando enlace...</p>
+            <div className="flex flex-col items-center gap-3 py-6 text-center">
+              {tokenExpired ? (
+                <>
+                  <p className="text-[15px] font-medium text-text-primary">Enlace inválido o expirado</p>
+                  <p className="text-[13px] text-text-muted">Este link ya no es válido. Solicita una nueva invitación o restablece tu contraseña.</p>
+                  <button
+                    onClick={() => router.replace('/login')}
+                    className="mt-2 text-[12px] text-brand-300 hover:text-brand-200 transition-colors"
+                  >
+                    Volver al inicio de sesión
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Loader2 size={20} className="animate-spin text-brand-300" />
+                  <p className="text-[13px] text-text-muted">Verificando enlace...</p>
+                </>
+              )}
             </div>
           ) : (
             <>

@@ -144,7 +144,7 @@ export async function inviteTeamMember(payload: {
   name: string
   last_name: string
   role: 'admin' | 'mechanic' | 'receptionist'
-}): Promise<{ alreadyRegistered?: boolean }> {
+}): Promise<{ alreadyRegistered?: boolean; alreadyMember?: boolean }> {
   const supabase = createClient()
   const { data: { session }, error: sessionError } = await supabase.auth.refreshSession()
   if (sessionError || !session) throw new Error('No active session')
