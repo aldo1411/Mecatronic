@@ -5,13 +5,17 @@ export async function getUserWorkshops(): Promise<UserWorkshop[]> {
   const supabase = createClient()
 
   // user_workshop.user_id references profiles.id, NOT auth.uid().
-  // Fetch the current user's profile first so we can filter explicitly —
-  // relying on RLS alone leaks rows for superadmins/owners who can read all members.
-  const { data: profile, error: profileError } = await supabase
+  // Get the current user's auth UUID first, then filter profiles explicitly so
+  // superadmin's "see all profiles" RLS policy doesn't cause .single() to blow up.
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+
+  const { data: profile } = await supabase
     .from('profiles')
     .select('id')
-    .single()
-  if (profileError || !profile) return []
+    .eq('auth_id', user.id)
+    .maybeSingle()
+  if (!profile) return []
 
   const { data, error } = await supabase
     .from('user_workshop')
