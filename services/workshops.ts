@@ -3,9 +3,20 @@ import type { UserWorkshop } from '@/types/database'
 
 export async function getUserWorkshops(): Promise<UserWorkshop[]> {
   const supabase = createClient()
+
+  // user_workshop.user_id references profiles.id, NOT auth.uid().
+  // Fetch the current user's profile first so we can filter explicitly —
+  // relying on RLS alone leaks rows for superadmins/owners who can read all members.
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('id')
+    .single()
+  if (profileError || !profile) return []
+
   const { data, error } = await supabase
     .from('user_workshop')
     .select('*, roles(name), workshops(*)')
+    .eq('user_id', profile.id)
     .eq('is_active', true)
   if (error) throw error
   return data ?? []
