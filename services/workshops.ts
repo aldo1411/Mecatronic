@@ -3,9 +3,24 @@ import type { UserWorkshop } from '@/types/database'
 
 export async function getUserWorkshops(): Promise<UserWorkshop[]> {
   const supabase = createClient()
+
+  // user_workshop.user_id references profiles.id, NOT auth.uid().
+  // Get the current user's auth UUID first, then filter profiles explicitly so
+  // superadmin's "see all profiles" RLS policy doesn't cause .single() to blow up.
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('auth_id', user.id)
+    .maybeSingle()
+  if (!profile) return []
+
   const { data, error } = await supabase
     .from('user_workshop')
     .select('*, roles(name), workshops(*)')
+    .eq('user_id', profile.id)
     .eq('is_active', true)
   if (error) throw error
   return data ?? []
