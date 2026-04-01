@@ -16,45 +16,44 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    // createClient() processes the #access_token hash immediately, replacing any
-    // existing session with the invite/recovery session BEFORE onAuthStateChange fires.
-    // We must NOT use getSession() here — it could return a stale existing session
-    // (e.g. a previously logged-in user) and cause updateUser() to run on the wrong account.
-    //
-    // Instead we rely solely on onAuthStateChange:
-    //   INITIAL_SESSION — fires immediately on registration with the post-hash session
-    //   PASSWORD_RECOVERY — fires for reset links
-    //   SIGNED_IN — fires for invite links if processed after listener registration
+    // createBrowserClient (@supabase/ssr) does NOT auto-process the URL hash fragment.
+    // We must parse the tokens manually and call setSession() ourselves.
+    // Register the listener BEFORE calling setSession so we never miss the SIGNED_IN event.
     const supabase = createClient()
     const hash = typeof window !== 'undefined' ? window.location.hash : ''
-    const fromInvite = hash.includes('type=invite')
-    const fromRecovery = hash.includes('type=recovery')
-    // Verify the URL actually carries a token — prevents a pre-existing session from
-    // hijacking this page when the link is expired/absent (the token would be missing).
-    const hasToken = hash.includes('access_token=')
+
+    // URLSearchParams handles percent-encoding correctly
+    const params      = new URLSearchParams(hash.slice(1))
+    const accessToken  = params.get('access_token')
+    const refreshToken = params.get('refresh_token') ?? ''
+    const type         = params.get('type') // 'invite' | 'recovery' | null
+
+    const fromInvite = type === 'invite'
     if (fromInvite) setIsInvite(true)
 
-    // No token in the URL at all → show expired immediately, no need to wait
-    if (!hasToken) {
+    // No access_token → invalid/direct navigation, show error immediately
+    if (!accessToken) {
       setTokenExpired(true)
       return
     }
 
+    // Ignore INITIAL_SESSION to prevent a pre-existing logged-in session from
+    // hijacking the form. Only SIGNED_IN fired by our explicit setSession() call
+    // (or PASSWORD_RECOVERY as a safety net) is accepted.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'PASSWORD_RECOVERY') {
-        setReady(true)
-      }
-      // Only accept SIGNED_IN / INITIAL_SESSION if the URL had a token — this prevents
-      // a pre-existing logged-in session from bypassing an expired link.
-      if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session && hasToken && (fromInvite || fromRecovery)) {
+      if ((event === 'SIGNED_IN' || event === 'PASSWORD_RECOVERY') && session) {
         setReady(true)
       }
     })
 
-    // If no valid session event fires within 8s the token is likely expired or invalid
-    const timeout = setTimeout(() => {
-      setTokenExpired(true)
-    }, 8000)
+    // Exchange the hash tokens for a live session.
+    // Success → SIGNED_IN fires above → form shows.
+    // Error   → token expired/invalid → show error immediately (no need to wait 8s).
+    supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
+      .then(({ error }) => { if (error) setTokenExpired(true) })
+
+    // Safety-net in case neither the event nor the setSession error fires within 8s
+    const timeout = setTimeout(() => setTokenExpired(true), 8000)
 
     return () => {
       subscription.unsubscribe()
