@@ -23,34 +23,52 @@ export default function ResetPasswordPage() {
     const hash = typeof window !== 'undefined' ? window.location.hash : ''
 
     // URLSearchParams handles percent-encoding correctly
-    const params      = new URLSearchParams(hash.slice(1))
-    const accessToken  = params.get('access_token')
+    const params = new URLSearchParams(hash.slice(1))
+    const accessToken = params.get('access_token')
     const refreshToken = params.get('refresh_token') ?? ''
-    const type         = params.get('type') // 'invite' | 'recovery' | null
+    const type = params.get('type') // 'invite' | 'recovery' | null
 
     const fromInvite = type === 'invite'
     if (fromInvite) setIsInvite(true)
 
-    // No access_token → invalid/direct navigation, show error immediately
-    if (!accessToken) {
+    // After a successful setSession() we clear the hash and store this flag so that
+    // a page refresh (hash is gone) can recover the still-valid session via INITIAL_SESSION
+    // instead of incorrectly showing "expirado".
+    const alreadyProcessed = sessionStorage.getItem('rp-session-ready') === '1'
+
+    // No token AND not a post-exchange refresh → invalid/direct navigation
+    if (!accessToken && !alreadyProcessed) {
       setTokenExpired(true)
       return
     }
 
-    // Ignore INITIAL_SESSION to prevent a pre-existing logged-in session from
-    // hijacking the form. Only SIGNED_IN fired by our explicit setSession() call
-    // (or PASSWORD_RECOVERY as a safety net) is accepted.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      // Fired by our explicit setSession() call below
       if ((event === 'SIGNED_IN' || event === 'PASSWORD_RECOVERY') && session) {
+        setReady(true)
+      }
+      // Trusted on a post-exchange refresh only (sessionStorage flag set).
+      // Without the flag this could be a pre-existing session → session-hijack risk.
+      if (event === 'INITIAL_SESSION' && session && alreadyProcessed) {
         setReady(true)
       }
     })
 
-    // Exchange the hash tokens for a live session.
-    // Success → SIGNED_IN fires above → form shows.
-    // Error   → token expired/invalid → show error immediately (no need to wait 8s).
-    supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
-      .then(({ error }) => { if (error) setTokenExpired(true) })
+    if (accessToken) {
+      // Exchange hash tokens for a live session.
+      // On success: clear hash so refresh won't re-exchange the consumed token;
+      //             set sessionStorage flag so refresh recovers via INITIAL_SESSION.
+      // On error:   show expired immediately.
+      supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
+        .then(({ error }) => {
+          if (error) {
+            setTokenExpired(true)
+          } else {
+            sessionStorage.setItem('rp-session-ready', '1')
+            window.history.replaceState(null, '', window.location.pathname)
+          }
+        })
+    }
 
     // Safety-net in case neither the event nor the setSession error fires within 8s
     const timeout = setTimeout(() => setTokenExpired(true), 8000)
@@ -80,6 +98,8 @@ export default function ResetPasswordPage() {
       setLoading(false)
       return
     }
+    // Flow complete — clear the sessionStorage flag so the page can't be reused
+    sessionStorage.removeItem('rp-session-ready')
     // Invite: user is already signed in → go pick their workshop
     // Recovery: session is consumed → go log in with new password
     router.replace(isInvite ? '/select-workshop' : '/login')
