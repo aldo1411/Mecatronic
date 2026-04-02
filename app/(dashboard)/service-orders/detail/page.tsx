@@ -767,9 +767,11 @@ function ServiceOrderDetailPage() {
                 <Ban size={13} /> Cancelar
               </button>
             )}
-            <button className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-2 border border-surface-3 rounded-lg text-[12px] text-text-muted hover:text-text-primary transition-colors">
-              <Printer size={13} /> Imprimir
-            </button>
+            {!isMechanic && (
+              <button className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-2 border border-surface-3 rounded-lg text-[12px] text-text-muted hover:text-text-primary transition-colors">
+                <Printer size={13} /> Imprimir
+              </button>
+            )}
             {order.state === 'ready' && !hasWorkOrderNote && (
               <button
                 onClick={() => setShowAddHistory(true)}
