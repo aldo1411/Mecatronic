@@ -123,11 +123,24 @@ export async function getTeamMembers(workshopId: string): Promise<TeamMember[]> 
 
 export async function updateMemberRole(membershipId: string, roleId: string): Promise<void> {
   const supabase = createClient()
-  const { error } = await supabase
-    .from('user_workshop')
-    .update({ role_id: roleId })
-    .eq('id', membershipId)
-  if (error) throw error
+  const { data: { session }, error: sessionError } = await supabase.auth.refreshSession()
+  if (sessionError || !session) throw new Error('No active session')
+
+  const res = await fetch(
+    `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/update-member-role`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ membershipId, roleId }),
+    }
+  )
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText }))
+    throw new Error(err.error ?? 'Error al actualizar rol')
+  }
 }
 
 export async function setMemberActive(membershipId: string, isActive: boolean): Promise<void> {
