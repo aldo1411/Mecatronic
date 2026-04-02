@@ -9,7 +9,9 @@ export async function addHistoryNote(payload: {
   services?: string
 }) {
   const supabase = createClient()
-  const { data: user } = await supabase.auth.getUser()
+  const { data: { user } } = await supabase.auth.getUser()
+  const { data: profile } = await supabase
+    .from('profiles').select('id').eq('auth_id', user!.id).maybeSingle()
   const { data, error } = await supabase
     .from('history_notes')
     .insert({
@@ -18,7 +20,7 @@ export async function addHistoryNote(payload: {
       notes:         payload.notes      ?? null,
       diagnostic:    payload.diagnostic ?? null,
       services:      payload.services   ?? null,
-      created_by:    user.user?.id      ?? null,
+      created_by:    profile?.id        ?? null,
     })
     .select()
     .single()
@@ -179,7 +181,9 @@ export async function createWorkOrder(payload: {
   if (folioError) throw folioError
   const folio = folioData as string
 
-  const { data: user } = await supabase.auth.getUser()
+  const { data: { user } } = await supabase.auth.getUser()
+  const { data: profile } = await supabase
+    .from('profiles').select('id').eq('auth_id', user!.id).maybeSingle()
 
   const { data, error } = await supabase
     .from('work_orders')
@@ -192,7 +196,7 @@ export async function createWorkOrder(payload: {
       estimated_delivery: payload.estimatedDelivery ?? null,
       folio,
       state:              'received',
-      created_by:         user.user?.id ?? null,
+      created_by:         profile?.id ?? null,
     })
     .select()
     .single()
