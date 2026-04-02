@@ -25,7 +25,7 @@ const ROLE_LABELS: Record<string, string> = {
 }
 
 function initials(name: string, lastName: string) {
-  return `${name[0] ?? ''}${lastName[0] ?? ''}`.toUpperCase()
+  return `${name?.[0] ?? ''}${lastName?.[0] ?? ''}`.toUpperCase()
 }
 
 // ─── Tab: Datos del taller ────────────────────────────────────────────────────
@@ -374,7 +374,7 @@ function TeamTab({ workshopId }: { workshopId: string }) {
 // ─── MemberRow ────────────────────────────────────────────────────────────────
 
 function MemberRow({ member, roles, inactive, onRoleChange, onDeactivate, onReactivate }: {
-  member: { id: string; user_id: string; role_id: string; profiles: { name: string; last_name: string }; roles: { id: string; name: string } }
+  member: { id: string; user_id: string; role_id: string; profiles: { name: string; last_name: string } | null; roles: { id: string; name: string } | null }
   roles: { id: string; name: string }[]
   inactive?: boolean
   onRoleChange?: (roleId: string) => void
@@ -383,15 +383,17 @@ function MemberRow({ member, roles, inactive, onRoleChange, onDeactivate, onReac
 }) {
   const roleName = member.roles?.name ?? ''
   const isOwner = roleName === 'owner'
+  const profileName = member.profiles?.name ?? '—'
+  const profileLastName = member.profiles?.last_name ?? ''
 
   return (
     <div className="flex items-center gap-3 px-4 py-3 border-b border-surface-3/40 last:border-0">
       <div className="w-8 h-8 rounded-full bg-brand-950 flex items-center justify-center text-[11px] font-medium text-brand-300 flex-shrink-0">
-        {initials(member.profiles.name, member.profiles.last_name)}
+        {initials(profileName, profileLastName)}
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-[13px] font-medium text-text-primary truncate">
-          {member.profiles.name} {member.profiles.last_name}
+          {profileName} {profileLastName}
         </p>
         {!inactive && !isOwner && (
           <select
