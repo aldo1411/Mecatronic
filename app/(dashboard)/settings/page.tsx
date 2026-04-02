@@ -241,7 +241,7 @@ function ProfileTab() {
 
 // ─── Tab: Equipo ──────────────────────────────────────────────────────────────
 
-function TeamTab({ workshopId }: { workshopId: string }) {
+function TeamTab({ workshopId, canEdit }: { workshopId: string; canEdit: boolean }) {
   const { data: members, isLoading } = useTeamMembers(workshopId)
   const { data: roles } = useRoles()
   const updateRole = useUpdateMemberRole(workshopId)
@@ -277,12 +277,14 @@ function TeamTab({ workshopId }: { workshopId: string }) {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <p className="text-[13px] text-text-muted">{activeMembers.length} miembro{activeMembers.length !== 1 ? 's' : ''} activo{activeMembers.length !== 1 ? 's' : ''}</p>
-        <button
-          onClick={() => setShowInvite(true)}
-          className="flex items-center gap-1.5 bg-brand-400 hover:bg-brand-300 text-brand-100 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors"
-        >
-          <UserPlus size={13} /> Invitar miembro
-        </button>
+        {canEdit && (
+          <button
+            onClick={() => setShowInvite(true)}
+            className="flex items-center gap-1.5 bg-brand-400 hover:bg-brand-300 text-brand-100 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors"
+          >
+            <UserPlus size={13} /> Invitar miembro
+          </button>
+        )}
       </div>
 
       {/* Active members */}
@@ -294,6 +296,7 @@ function TeamTab({ workshopId }: { workshopId: string }) {
             key={m.id}
             member={m}
             roles={roles ?? []}
+            canEdit={canEdit}
             onRoleChange={(roleId) => updateRole.mutate({ membershipId: m.id, roleId }, {
               onError: () => toast.error('Error al cambiar rol'),
             })}
@@ -315,6 +318,7 @@ function TeamTab({ workshopId }: { workshopId: string }) {
                 key={m.id}
                 member={m}
                 roles={roles ?? []}
+                canEdit={canEdit}
                 inactive
                 onReactivate={() => setActive.mutate({ membershipId: m.id, isActive: true }, {
                   onSuccess: () => toast.success('Acceso reactivado'),
@@ -373,9 +377,10 @@ function TeamTab({ workshopId }: { workshopId: string }) {
 
 // ─── MemberRow ────────────────────────────────────────────────────────────────
 
-function MemberRow({ member, roles, inactive, onRoleChange, onDeactivate, onReactivate }: {
+function MemberRow({ member, roles, canEdit, inactive, onRoleChange, onDeactivate, onReactivate }: {
   member: { id: string; user_id: string; role_id: string; profiles: { name: string; last_name: string } | null; roles: { id: string; name: string } | null }
   roles: { id: string; name: string }[]
+  canEdit?: boolean
   inactive?: boolean
   onRoleChange?: (roleId: string) => void
   onDeactivate?: () => void
@@ -395,7 +400,7 @@ function MemberRow({ member, roles, inactive, onRoleChange, onDeactivate, onReac
         <p className="text-[13px] font-medium text-text-primary truncate">
           {profileName} {profileLastName}
         </p>
-        {!inactive && !isOwner && (
+        {!inactive && !isOwner && canEdit && (
           <select
             value={member.role_id}
             onChange={e => onRoleChange?.(e.target.value)}
@@ -406,11 +411,11 @@ function MemberRow({ member, roles, inactive, onRoleChange, onDeactivate, onReac
             ))}
           </select>
         )}
-        {(inactive || isOwner) && (
+        {(inactive || isOwner || !canEdit) && (
           <p className="text-[11px] text-text-faint mt-0.5">{ROLE_LABELS[roleName] ?? roleName}</p>
         )}
       </div>
-      {!isOwner && (
+      {!isOwner && canEdit && (
         inactive ? (
           <button onClick={onReactivate} className="text-[11px] text-brand-300 hover:text-brand-200 transition-colors px-2 py-1">Reactivar</button>
         ) : (
@@ -491,7 +496,7 @@ export default function SettingsPage() {
         {/* Tab content */}
         {tab === 'workshop' && activeWorkshop && <WorkshopTab workshopId={activeWorkshop.id} canEdit={canEditWorkshop} />}
         {tab === 'profile'  && <ProfileTab />}
-        {tab === 'team'     && activeWorkshop && <TeamTab workshopId={activeWorkshop.id} />}
+        {tab === 'team'     && activeWorkshop && <TeamTab workshopId={activeWorkshop.id} canEdit={canEditWorkshop || activeRole === 'admin'} />}
       </div>
     </div>
   )
