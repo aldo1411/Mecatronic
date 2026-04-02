@@ -448,15 +448,18 @@ function SectionLoader() {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
+const WORKSHOP_TAB_ROLES = ['owner', 'admin', 'superadmin']
+
 const ALL_TABS: { id: Tab; label: string; roles?: string[] }[] = [
-  { id: 'workshop', label: 'Taller' },
+  { id: 'workshop', label: 'Taller', roles: WORKSHOP_TAB_ROLES },
   { id: 'profile',  label: 'Mi perfil' },
   { id: 'team',     label: 'Equipo', roles: TEAM_ROLES },
 ]
 
 export default function SettingsPage() {
   const { activeWorkshop, activeRole } = useWorkshopStore()
-  const [tab, setTab] = useState<Tab>('workshop')
+  const canSeeWorkshop = !!activeRole && WORKSHOP_TAB_ROLES.includes(activeRole)
+  const [tab, setTab] = useState<Tab>(canSeeWorkshop ? 'workshop' : 'profile')
 
   const canEditWorkshop = !!activeRole && OWNER_ROLES.includes(activeRole)
   const tabs = ALL_TABS.filter(t => !t.roles || (activeRole && t.roles.includes(activeRole)))
