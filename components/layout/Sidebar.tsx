@@ -8,6 +8,7 @@ import { useWorkshopStore } from '@/stores/workshop.store'
 import { useUIStore } from '@/stores/ui.store'
 import { useLowStockAlerts } from '@/hooks/useInventory'
 import { useSubscriptionSync } from '@/hooks/useSubscriptionSync'
+import { useMyProfile } from '@/hooks/useSettings'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { toast } from '@/components/shared/Toast'
@@ -39,9 +40,15 @@ export function Sidebar() {
   const { activeWorkshop, activeRole, clearWorkshop } = useWorkshopStore()
   const { sidebarOpen, setSidebarOpen } = useUIStore()
   const { data: lowStock } = useLowStockAlerts()
+  const { data: profile } = useMyProfile()
   useSubscriptionSync()
   const lowStockCount = lowStock?.length ?? 0
   const [loggingOut, setLoggingOut] = useState(false)
+
+  const fullName = profile ? `${profile.name} ${profile.last_name}` : '—'
+  const initials = profile
+    ? `${profile.name[0] ?? ''}${profile.last_name[0] ?? ''}`.toUpperCase()
+    : '—'
 
   // Close drawer on navigation (mobile)
   useEffect(() => {
@@ -161,10 +168,10 @@ export function Sidebar() {
         <div className="p-2.5 border-t border-surface-3">
           <div className="flex items-center gap-2 p-1.5 rounded-md">
             <div className="w-7 h-7 rounded-full bg-blue-900 flex items-center justify-center text-[11px] font-medium text-blue-300 flex-shrink-0">
-              TL
+              {initials}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-[12px] font-medium text-text-primary truncate">Taldo Lozano</p>
+              <p className="text-[12px] font-medium text-text-primary truncate">{fullName}</p>
               <p className="text-[10px] text-text-faint capitalize truncate">{activeRole}</p>
             </div>
             <button onClick={handleLogout} className="text-text-faint hover:text-text-muted transition-colors flex-shrink-0">
