@@ -5,10 +5,11 @@ import { Topbar } from '@/components/layout/Topbar'
 import { WorkOrderBadge } from '@/components/shared/StatusBadge'
 import { Pagination } from '@/components/shared/Pagination'
 import { TableLoader, TableBackdrop } from '@/components/shared/Loader'
-import { useWorkOrders, PAGE_SIZE, type SortField, type SortDir } from '@/hooks/useWorkOrders'
+import { useWorkOrders, useWorkOrdersRealtime, PAGE_SIZE, type SortField, type SortDir } from '@/hooks/useWorkOrders'
+import { useWorkshopStore } from '@/stores/workshop.store'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import type { WorkOrderState } from '@/types/database'
-import { Plus, Search, ArrowUp, ArrowDown, ArrowUpDown, UserCheck } from 'lucide-react'
+import { Plus, Search, ArrowUp, ArrowDown, ArrowUpDown, UserCheck, RefreshCw } from 'lucide-react'
 
 const STATES: { value: WorkOrderState | 'all'; label: string }[] = [
   { value: 'all',          label: 'Todas' },
@@ -39,13 +40,17 @@ export default function ServiceOrdersPage() {
   const [sort, setSort]               = useState<SortState>({ field: 'created_at', dir: 'desc' })
   const [assignedToMe, setAssignedToMe] = useState(false)
 
-  const { data: result, isLoading, isFetching } = useWorkOrders({
+  const { activeWorkshop } = useWorkshopStore()
+
+  const { data: result, isLoading, isFetching, refetch } = useWorkOrders({
     state:        activeState !== 'all' ? activeState : undefined,
     page,
     sortField:    sort.field,
     sortDir:      sort.dir,
     assignedToMe,
   })
+
+  useWorkOrdersRealtime(activeWorkshop?.id)
 
   const orders = result?.data ?? []
   const total  = result?.total ?? 0
@@ -100,12 +105,22 @@ export default function ServiceOrdersPage() {
         title="Órdenes de servicio"
         subtitle={total > 0 ? `${total} órdenes en total` : undefined}
         actions={
-          <Link
-            href="/service-orders/new"
-            className="flex items-center gap-1.5 bg-brand-400 hover:bg-brand-300 text-brand-100 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors"
-          >
-            <Plus size={13} /> Nueva OS
-          </Link>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => refetch()}
+              disabled={isFetching}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] text-text-muted border border-surface-3 hover:border-surface-2 hover:text-text-primary transition-colors disabled:opacity-50"
+            >
+              <RefreshCw size={13} className={isFetching ? 'animate-spin' : ''} />
+              Actualizar
+            </button>
+            <Link
+              href="/service-orders/new"
+              className="flex items-center gap-1.5 bg-brand-400 hover:bg-brand-300 text-brand-100 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors"
+            >
+              <Plus size={13} /> Nueva OS
+            </Link>
+          </div>
         }
       />
 
