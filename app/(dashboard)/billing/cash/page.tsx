@@ -1,7 +1,8 @@
 'use client'
 import { useState } from 'react'
 import { Topbar } from '@/components/layout/Topbar'
-import { useDailyCashSummary } from '@/hooks/useBilling'
+import { useDailyCashSummary, usePaymentsRealtime } from '@/hooks/useBilling'
+import { useWorkshopStore } from '@/stores/workshop.store'
 import { Pagination } from '@/components/shared/Pagination'
 import { formatCurrency } from '@/lib/utils'
 import { CASH_PAGE_SIZE } from '@/services/billing'
@@ -77,9 +78,12 @@ const CURRENT_YEAR = new Date().getFullYear()
 const selectClass = 'bg-surface-0 border border-surface-3 rounded-lg px-2.5 py-1.5 text-[12px] text-text-primary outline-none focus:border-brand-400 transition-colors'
 
 export default function CashSummaryPage() {
+  const { activeWorkshop } = useWorkshopStore()
   const [filterMonth, setFilterMonth] = useState('')
   const [filterYear,  setFilterYear]  = useState('')
   const [tablePage,   setTablePage]   = useState(1)
+
+  usePaymentsRealtime(activeWorkshop?.id)
 
   const currentYM  = currentYearMonth()
   const monthRange_ = monthRange(currentYM)

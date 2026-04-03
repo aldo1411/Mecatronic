@@ -1,6 +1,6 @@
 'use client'
 import { Topbar } from '@/components/layout/Topbar'
-import { useInventoryValuation } from '@/hooks/useInventory'
+import { useInventoryValuation, useInventoryRealtime } from '@/hooks/useInventory'
 import { useWorkshopStore } from '@/stores/workshop.store'
 import { formatCurrency } from '@/lib/utils'
 import { TableLoader } from '@/components/shared/Loader'
@@ -9,6 +9,8 @@ import { TrendingUp } from 'lucide-react'
 export default function InventoryValuationPage() {
   const { activeWorkshop } = useWorkshopStore()
   const { data: rows, isLoading } = useInventoryValuation(activeWorkshop?.id)
+
+  useInventoryRealtime(activeWorkshop?.id)
 
   const totalCost  = (rows ?? []).reduce((acc, r) => acc + (r.quantity_on_hand * r.average_cost), 0)
   const totalSale  = (rows ?? []).reduce((acc, r) => {

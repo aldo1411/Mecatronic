@@ -133,10 +133,60 @@ export function useLowStockAlertsRealtime(workshopId: string | undefined) {
     const supabase = createClient()
     const channel = supabase
       .channel(`inventory_stock:${workshopId}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'inventory_stock' },
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory_stock' },
         () => { qc.invalidateQueries({ queryKey: ['low-stock-alerts'] }) }
+      )
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [workshopId, qc])
+}
+
+export function useInventoryRealtime(workshopId: string | undefined) {
+  const qc = useQueryClient()
+  useEffect(() => {
+    if (!workshopId) return
+    const supabase = createClient()
+    const invalidateAll = () => {
+      qc.invalidateQueries({ queryKey: ['parts'] })
+      qc.invalidateQueries({ queryKey: ['low-stock-alerts'] })
+      qc.invalidateQueries({ queryKey: ['inventory-entries'] })
+      qc.invalidateQueries({ queryKey: ['inventory-adjustments'] })
+      qc.invalidateQueries({ queryKey: ['inventory-valuation'] })
+    }
+    const channel = supabase
+      .channel(`inventory:${workshopId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'parts' }, invalidateAll)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory_stock' }, invalidateAll)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory_entries' },
+        () => {
+          qc.invalidateQueries({ queryKey: ['inventory-entries'] })
+          qc.invalidateQueries({ queryKey: ['parts'] })
+          qc.invalidateQueries({ queryKey: ['low-stock-alerts'] })
+          qc.invalidateQueries({ queryKey: ['inventory-valuation'] })
+        }
+      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory_adjustments' },
+        () => {
+          qc.invalidateQueries({ queryKey: ['inventory-adjustments'] })
+          qc.invalidateQueries({ queryKey: ['parts'] })
+          qc.invalidateQueries({ queryKey: ['low-stock-alerts'] })
+          qc.invalidateQueries({ queryKey: ['inventory-valuation'] })
+        }
+      )
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [workshopId, qc])
+}
+
+export function useSuppliersRealtime(workshopId: string | undefined) {
+  const qc = useQueryClient()
+  useEffect(() => {
+    if (!workshopId) return
+    const supabase = createClient()
+    const channel = supabase
+      .channel(`suppliers:${workshopId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'suppliers' },
+        () => { qc.invalidateQueries({ queryKey: ['suppliers'] }) }
       )
       .subscribe()
     return () => { supabase.removeChannel(channel) }

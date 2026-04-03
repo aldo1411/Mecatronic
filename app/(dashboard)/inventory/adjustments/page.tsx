@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { Topbar } from '@/components/layout/Topbar'
-import { useParts, useCreateInventoryAdjustment, useInventoryAdjustments, ADJUSTMENTS_PAGE_SIZE } from '@/hooks/useInventory'
+import { useParts, useCreateInventoryAdjustment, useInventoryAdjustments, useInventoryRealtime, ADJUSTMENTS_PAGE_SIZE } from '@/hooks/useInventory'
 import { useWorkshopStore } from '@/stores/workshop.store'
 import { formatDateTime } from '@/lib/utils'
 import { Plus, X, Loader2, ChevronLeft, ChevronRight } from 'lucide-react'
@@ -26,6 +26,8 @@ export default function InventoryAdjustmentsPage() {
   const { data: parts } = useParts()
   const createAdj = useCreateInventoryAdjustment()
   const [page, setPage] = useState(1)
+
+  useInventoryRealtime(activeWorkshop?.id)
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ partId: '', type: 'physical_count' as AdjType, delta: '', notes: '' })
 

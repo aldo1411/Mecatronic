@@ -153,10 +153,32 @@ export function usePaymentsRealtime(workshopId: string | undefined) {
     const supabase = createClient()
     const channel = supabase
       .channel(`payments:${workshopId}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'payments' },
-        () => { qc.invalidateQueries({ queryKey: ['daily-cash-summary'] }) }
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'payments' },
+        () => {
+          qc.invalidateQueries({ queryKey: ['daily-cash-summary'] })
+          qc.invalidateQueries({ queryKey: ['invoice-balance'] })
+          qc.invalidateQueries({ queryKey: ['invoice'] })
+          qc.invalidateQueries({ queryKey: ['invoices'] })
+        }
+      )
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [workshopId, qc])
+}
+
+export function useInvoicesRealtime(workshopId: string | undefined) {
+  const qc = useQueryClient()
+  useEffect(() => {
+    if (!workshopId) return
+    const supabase = createClient()
+    const channel = supabase
+      .channel(`invoices:${workshopId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'invoices' },
+        () => {
+          qc.invalidateQueries({ queryKey: ['invoices'] })
+          qc.invalidateQueries({ queryKey: ['invoice'] })
+          qc.invalidateQueries({ queryKey: ['invoice-balance'] })
+        }
       )
       .subscribe()
     return () => { supabase.removeChannel(channel) }

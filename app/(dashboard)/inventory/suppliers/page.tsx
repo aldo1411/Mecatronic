@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { Topbar } from '@/components/layout/Topbar'
-import { useSuppliers, useUpdateSupplier, useDeactivateSupplier, SUPPLIERS_PAGE_SIZE } from '@/hooks/useInventory'
+import { useSuppliers, useUpdateSupplier, useDeactivateSupplier, useSuppliersRealtime, SUPPLIERS_PAGE_SIZE } from '@/hooks/useInventory'
 import { useWorkshopStore } from '@/stores/workshop.store'
 import { createClient } from '@/lib/supabase/client'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -76,6 +76,8 @@ export default function SuppliersPage() {
   const qc = useQueryClient()
   const updateSupplier   = useUpdateSupplier()
   const deactivateSupplier = useDeactivateSupplier()
+
+  useSuppliersRealtime(activeWorkshop?.id)
 
   const [search, setSearch]   = useState('')
   const [page, setPage]       = useState(1)
