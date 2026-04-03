@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useEffect } from 'react'
 import {
   getWorkOrders, getWorkOrder, createWorkOrder,
   updateWorkOrderState, updateWorkOrderMechanic,
@@ -9,6 +10,7 @@ import {
   addHistoryNote,
   type SortField, type SortDir
 } from '@/services/work-orders'
+import { createClient } from '@/lib/supabase/client'
 import type { WorkOrderState } from '@/types/database'
 
 export type { SortField, SortDir }
@@ -145,6 +147,23 @@ export function useAddHistoryNote() {
       qc.invalidateQueries({ queryKey: ['history-notes'] })
     },
   })
+}
+
+export function useWorkOrdersRealtime(workshopId: string | undefined) {
+  const qc = useQueryClient()
+  useEffect(() => {
+    if (!workshopId) return
+    const supabase = createClient()
+    const channel = supabase
+      .channel(`work_orders:${workshopId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'work_orders', filter: `workshop_id=eq.${workshopId}` },
+        () => { qc.invalidateQueries({ queryKey: ['work-orders'] }) }
+      )
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [workshopId, qc])
 }
 
 export { PAGE_SIZE, HISTORY_PAGE_SIZE }
