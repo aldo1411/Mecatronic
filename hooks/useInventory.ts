@@ -1,4 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useEffect } from 'react'
+import { createClient } from '@/lib/supabase/client'
 import {
   getParts, getPartDetail, updatePart, deactivatePart,
   getLowStockAlerts,
@@ -121,4 +123,22 @@ export function useDeactivateSupplier() {
     mutationFn: (supplierId: string) => deactivateSupplier(supplierId),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['suppliers'] }),
   })
+}
+
+
+export function useLowStockAlertsRealtime(workshopId: string | undefined) {
+  const qc = useQueryClient()
+  useEffect(() => {
+    if (!workshopId) return
+    const supabase = createClient()
+    const channel = supabase
+      .channel(`inventory_stock:${workshopId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'inventory_stock' },
+        () => { qc.invalidateQueries({ queryKey: ['low-stock-alerts'] }) }
+      )
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [workshopId, qc])
 }
