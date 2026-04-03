@@ -2,7 +2,8 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { Topbar } from '@/components/layout/Topbar'
-import { useParts, useLowStockAlerts, useUpdatePart, useDeactivatePart } from '@/hooks/useInventory'
+import { useParts, useLowStockAlerts, useUpdatePart, useDeactivatePart, useInventoryRealtime } from '@/hooks/useInventory'
+import { useWorkshopStore } from '@/stores/workshop.store'
 import { formatCurrency } from '@/lib/utils'
 import { Plus, Search, AlertTriangle, X, Loader2, Pencil, Trash2 } from 'lucide-react'
 import { TableLoader, TableBackdrop } from '@/components/shared/Loader'
@@ -17,10 +18,13 @@ type Part = {
 }
 
 export default function InventoryPage() {
+  const { activeWorkshop } = useWorkshopStore()
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<'all' | 'low' | 'critical'>('all')
   const { data: parts, isLoading, isFetching } = useParts(search || undefined)
   const { data: alerts } = useLowStockAlerts()
+
+  useInventoryRealtime(activeWorkshop?.id)
   const updatePart = useUpdatePart()
   const deactivatePart = useDeactivatePart()
   const alertCount = alerts?.length ?? 0

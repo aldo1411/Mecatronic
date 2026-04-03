@@ -6,7 +6,7 @@ import { TableLoader, TableBackdrop } from '@/components/shared/Loader'
 import { Topbar } from '@/components/layout/Topbar'
 import { InvoiceBadge } from '@/components/shared/StatusBadge'
 import { Pagination } from '@/components/shared/Pagination'
-import { useInvoices, useCreateInvoiceFromWorkOrder, INVOICES_PAGE_SIZE } from '@/hooks/useBilling'
+import { useInvoices, useCreateInvoiceFromWorkOrder, useInvoicesRealtime, usePaymentsRealtime, INVOICES_PAGE_SIZE } from '@/hooks/useBilling'
 import { useWorkshopStore } from '@/stores/workshop.store'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { toast } from '@/components/shared/Toast'
@@ -25,6 +25,9 @@ function BillingPageContent() {
   const searchParams = useSearchParams()
   const workOrderId  = searchParams.get('workOrderId')
   const { activeWorkshop } = useWorkshopStore()
+
+  useInvoicesRealtime(activeWorkshop?.id)
+  usePaymentsRealtime(activeWorkshop?.id)
 
   const [page, setPage]           = useState(1)
   const [status, setStatus]       = useState('')

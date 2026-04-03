@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { Topbar } from '@/components/layout/Topbar'
-import { useParts, useSuppliers, useCreateInventoryEntry, useInventoryEntries, ENTRIES_PAGE_SIZE } from '@/hooks/useInventory'
+import { useParts, useSuppliers, useCreateInventoryEntry, useInventoryEntries, useInventoryRealtime, useSuppliersRealtime, ENTRIES_PAGE_SIZE } from '@/hooks/useInventory'
 import { useWorkshopStore } from '@/stores/workshop.store'
 import { formatCurrency, formatDateTime } from '@/lib/utils'
 import { Plus, X, Loader2, CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react'
@@ -14,6 +14,9 @@ export default function InventoryEntriesPage() {
   const { data: suppliers } = useSuppliers()
   const createEntry = useCreateInventoryEntry()
   const [page, setPage] = useState(1)
+
+  useInventoryRealtime(activeWorkshop?.id)
+  useSuppliersRealtime(activeWorkshop?.id)
   const [showForm, setShowForm] = useState(false)
   const [success, setSuccess] = useState(false)
   const [form, setForm] = useState({ partId: '', supplierId: '', quantity: '', unitCost: '', invoiceRef: '' })

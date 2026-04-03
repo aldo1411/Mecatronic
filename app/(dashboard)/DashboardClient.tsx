@@ -1,8 +1,8 @@
 'use client'
 import { Topbar } from '@/components/layout/Topbar'
-import { useWorkOrders } from '@/hooks/useWorkOrders'
-import { useLowStockAlerts } from '@/hooks/useInventory'
-import { useDailyCashSummary } from '@/hooks/useBilling'
+import { useWorkOrders, useWorkOrdersRealtime } from '@/hooks/useWorkOrders'
+import { useLowStockAlerts, useLowStockAlertsRealtime } from '@/hooks/useInventory'
+import { useDailyCashSummary, usePaymentsRealtime } from '@/hooks/useBilling'
 import { useWorkshopStore } from '@/stores/workshop.store'
 import { WorkOrderBadge } from '@/components/shared/StatusBadge'
 import { formatCurrency } from '@/lib/utils'
@@ -12,12 +12,16 @@ import Link from 'next/link'
 const ACTIVE_STATES = ['received', 'in_progress', 'waiting_part', 'ready']
 
 export function DashboardClient() {
-  const { activeRole } = useWorkshopStore()
+  const { activeRole, activeWorkshop } = useWorkshopStore()
   const isMechanic = activeRole === 'mechanic'
 
   const { data: result, isLoading } = useWorkOrders()
   const { data: lowStock } = useLowStockAlerts()
   const { data: cashSummary } = useDailyCashSummary()
+
+  useWorkOrdersRealtime(activeWorkshop?.id)
+  useLowStockAlertsRealtime(activeWorkshop?.id)
+  usePaymentsRealtime(activeWorkshop?.id)
 
   const today = new Date().toISOString().slice(0, 10)
   const allOrders = result?.data ?? []
