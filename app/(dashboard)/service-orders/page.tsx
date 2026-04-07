@@ -40,7 +40,8 @@ export default function ServiceOrdersPage() {
   const [sort, setSort]               = useState<SortState>({ field: 'created_at', dir: 'desc' })
   const [assignedToMe, setAssignedToMe] = useState(false)
 
-  const { activeWorkshop } = useWorkshopStore()
+  const { activeWorkshop, activeRole } = useWorkshopStore()
+  const isMechanic = activeRole === 'mechanic'
 
   const { data: result, isLoading, isFetching, refetch } = useWorkOrders({
     state:        activeState !== 'all' ? activeState : undefined,
@@ -203,7 +204,7 @@ export default function ServiceOrdersPage() {
                   <th className={thClass}>Cliente</th>
                   <th className={`${thClass} hidden lg:table-cell`}>Mecánico</th>
                   <th className={thClass}>Estado</th>
-                  <th className={`${thClass} hidden sm:table-cell`}>Total</th>
+                  {!isMechanic && <th className={`${thClass} hidden sm:table-cell`}>Total</th>}
                   {sortableHeader('Fecha', 'created_at', 'hidden md:table-cell')}
                   <th className={thClass}></th>
                 </tr>
@@ -213,7 +214,7 @@ export default function ServiceOrdersPage() {
                   <TableLoader cols={8} />
                 ) : filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-4 py-10 text-center text-[12px] text-text-faint">
+                    <td colSpan={isMechanic ? 7 : 8} className="px-4 py-10 text-center text-[12px] text-text-faint">
                       {search ? 'Sin resultados para tu búsqueda' : 'Sin órdenes registradas'}
                     </td>
                   </tr>
@@ -238,13 +239,13 @@ export default function ServiceOrdersPage() {
                         {mechanic ? `${mechanic.name} ${mechanic.last_name}` : '—'}
                       </td>
                       <td className="px-4 py-3"><WorkOrderBadge state={order.state} /></td>
-                      <td className="px-4 py-3 text-[12px] font-medium text-text-primary hidden sm:table-cell">
+                      {!isMechanic && <td className="px-4 py-3 text-[12px] font-medium text-text-primary hidden sm:table-cell">
                         {(() => {
                           const inv = ((order.invoices ?? []) as { status: string; total: number }[])
                             .find(i => i.status !== 'cancelled')
                           return inv && inv.total > 0 ? formatCurrency(inv.total) : '—'
                         })()}
-                      </td>
+                      </td>}
                       <td className="px-4 py-3 text-[11px] text-text-faint hidden md:table-cell">{formatDate(order.created_at)}</td>
                       <td className="px-4 py-3">
                         <Link href={`/service-orders/detail?id=${order.id}`} className="text-[11px] text-brand-300 hover:text-brand-200 transition-colors">

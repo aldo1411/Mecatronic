@@ -137,12 +137,12 @@ export function useServiceCatalog() {
   })
 }
 
-export function useDailyCashSummary(params?: { from?: string; to?: string; page?: number }) {
+export function useDailyCashSummary(params?: { from?: string; to?: string; page?: number }, enabled = true) {
   const { activeWorkshop } = useWorkshopStore()
   return useQuery({
     queryKey: ['daily-cash-summary', activeWorkshop?.id, params],
     queryFn:  () => getDailyCashSummary(activeWorkshop!.id, params),
-    enabled:  !!activeWorkshop,
+    enabled:  !!activeWorkshop && enabled,
   })
 }
 

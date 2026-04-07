@@ -13,11 +13,12 @@ const ACTIVE_STATES = ['received', 'in_progress', 'waiting_part', 'ready']
 
 export function DashboardClient() {
   const { activeRole, activeWorkshop } = useWorkshopStore()
-  const isMechanic = activeRole === 'mechanic'
+  const isMechanic     = activeRole === 'mechanic'
+  const isReceptionist = activeRole === 'receptionist'
 
   const { data: result, isLoading } = useWorkOrders()
-  const { data: lowStock } = useLowStockAlerts()
-  const { data: cashSummary } = useDailyCashSummary()
+  const { data: lowStock } = useLowStockAlerts(!isMechanic && !isReceptionist)
+  const { data: cashSummary } = useDailyCashSummary(undefined, !isMechanic && !isReceptionist)
 
   useWorkOrdersRealtime(activeWorkshop?.id)
   useLowStockAlertsRealtime(activeWorkshop?.id)
@@ -109,11 +110,11 @@ export function DashboardClient() {
         {/* Metrics */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {[
-            { label: 'OS activas', value: activeCount, icon: ClipboardList, color: 'text-blue-300' },
-            { label: 'Ingresos hoy', value: formatCurrency(todayRevenue), icon: TrendingUp, color: 'text-brand-200' },
-            { label: 'OS entregadas hoy', value: deliveredToday, icon: CheckCircle, color: 'text-brand-200' },
-            { label: 'Inventario crítico', value: (lowStock ?? []).length, icon: Package, color: 'text-amber-300' },
-          ].map(({ label, value, icon: Icon, color }) => (
+            { label: 'OS activas',         value: activeCount,                   icon: ClipboardList, color: 'text-blue-300',  show: true },
+            { label: 'Ingresos hoy',       value: formatCurrency(todayRevenue),  icon: TrendingUp,    color: 'text-brand-200', show: !isReceptionist },
+            { label: 'OS entregadas hoy',  value: deliveredToday,                icon: CheckCircle,   color: 'text-brand-200', show: true },
+            { label: 'Inventario crítico', value: (lowStock ?? []).length,       icon: Package,       color: 'text-amber-300', show: !isReceptionist },
+          ].filter(m => m.show).map(({ label, value, icon: Icon, color }) => (
             <div key={label} className="bg-surface-0 border border-surface-3 rounded-xl p-4 animate-fadeIn">
               <div className="flex items-center justify-between mb-3">
                 <p className="text-[11px] text-text-faint">{label}</p>
@@ -126,12 +127,12 @@ export function DashboardClient() {
 
         {/* Orders + Alerts */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <div className="lg:col-span-2">
+          <div className={isReceptionist ? 'lg:col-span-3' : 'lg:col-span-2'}>
             {activeOrdersTable}
           </div>
 
-          {/* Inventory alerts */}
-          <div className="bg-surface-0 border border-surface-3 rounded-xl overflow-hidden">
+          {/* Inventory alerts — hidden for receptionist */}
+          {!isReceptionist && <div className="bg-surface-0 border border-surface-3 rounded-xl overflow-hidden">
             <div className="px-4 py-3 border-b border-surface-3">
               <p className="text-[13px] font-medium text-text-primary">Alertas de inventario</p>
             </div>
@@ -152,7 +153,7 @@ export function DashboardClient() {
                 ))}
               </div>
             )}
-          </div>
+          </div>}
         </div>
       </div>
     </div>
