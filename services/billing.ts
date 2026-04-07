@@ -142,14 +142,13 @@ export async function createInvoiceFromWorkOrder(payload: {
     return cancelled
   }
 
-  const { data: user } = await supabase.auth.getUser()
+  const { data: { user } } = await supabase.auth.getUser()
 
-  // Look up work order to get client_id
-  const { data: wo, error: woError } = await supabase
-    .from('work_orders')
-    .select('client_id')
-    .eq('id', payload.workOrderId)
-    .single()
+  // Look up work order to get client_id + resolve profile id for created_by FK
+  const [{ data: wo, error: woError }, { data: creatorProfile }] = await Promise.all([
+    supabase.from('work_orders').select('client_id').eq('id', payload.workOrderId).single(),
+    user ? supabase.from('profiles').select('id').eq('auth_id', user.id).maybeSingle() : Promise.resolve({ data: null }),
+  ])
   if (woError) throw woError
 
   const { data: folio, error: folioError } = await supabase
@@ -184,7 +183,7 @@ export async function createInvoiceFromWorkOrder(payload: {
       subtotal,
       tax_amount:    taxAmount,
       issued_at:     new Date().toISOString(),
-      created_by:    user.user?.id ?? null,
+      created_by:    creatorProfile?.id ?? null,
     })
     .select()
     .single()
@@ -267,7 +266,10 @@ export async function addPayment(payload: {
   reference?: string
 }) {
   const supabase = createClient()
-  const { data: user } = await supabase.auth.getUser()
+  const { data: { user } } = await supabase.auth.getUser()
+  const { data: creatorProfile } = user
+    ? await supabase.from('profiles').select('id').eq('auth_id', user.id).maybeSingle()
+    : { data: null }
 
   const { data, error } = await supabase.rpc('register_payment', {
     p_invoice_id:  payload.invoiceId,
@@ -275,7 +277,7 @@ export async function addPayment(payload: {
     p_amount:      payload.amount,
     p_method:      payload.method,
     p_reference:   payload.reference ?? null,
-    p_created_by:  user.user?.id ?? null,
+    p_created_by:  creatorProfile?.id ?? null,
   })
   if (error) throw new Error(error.message)
   return data as { payment_id: string; new_status: string; balance_due: number }
