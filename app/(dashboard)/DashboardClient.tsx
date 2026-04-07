@@ -16,12 +16,12 @@ export function DashboardClient() {
   const isMechanic = activeRole === 'mechanic'
 
   const { data: result, isLoading } = useWorkOrders()
-  const { data: lowStock } = useLowStockAlerts()
-  const { data: cashSummary } = useDailyCashSummary()
+  const { data: lowStock } = useLowStockAlerts(!isMechanic)
+  const { data: cashSummary } = useDailyCashSummary(undefined, !isMechanic)
 
   useWorkOrdersRealtime(activeWorkshop?.id)
-  useLowStockAlertsRealtime(activeWorkshop?.id)
-  usePaymentsRealtime(activeWorkshop?.id)
+  useLowStockAlertsRealtime(!isMechanic ? activeWorkshop?.id : undefined)
+  usePaymentsRealtime(!isMechanic ? activeWorkshop?.id : undefined)
 
   const today = new Date().toISOString().slice(0, 10)
   const allOrders = result?.data ?? []

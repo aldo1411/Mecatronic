@@ -44,10 +44,11 @@ export function useDeactivatePart() {
   })
 }
 
-export function useLowStockAlerts() {
+export function useLowStockAlerts(enabled = true) {
   return useQuery({
     queryKey: ['low-stock-alerts'],
     queryFn: getLowStockAlerts,
+    enabled,
   })
 }
 
