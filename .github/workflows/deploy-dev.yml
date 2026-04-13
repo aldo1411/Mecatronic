@@ -11,6 +11,7 @@ concurrency:
 
 permissions:
   contents: write
+  actions: read
 
 jobs:
   build-and-deploy:
@@ -26,16 +27,44 @@ jobs:
         with:
           ref: dev
 
+      - name: Find PR build artifact for this SHA
+        id: find-build
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          RUN_ID=$(gh api \
+            "/repos/${{ github.repository }}/actions/workflows/pr-build-check.yml/runs?head_sha=${{ github.sha }}&status=success&per_page=1" \
+            --jq '.workflow_runs[0].id // ""')
+          echo "run_id=${RUN_ID}" >> $GITHUB_OUTPUT
+          if [ -n "$RUN_ID" ]; then
+            echo "Reusing build from PR check run $RUN_ID"
+          else
+            echo "No PR build found for ${{ github.sha }} — will build from scratch"
+          fi
+
+      - name: Download build from PR check
+        if: steps.find-build.outputs.run_id != ''
+        uses: actions/download-artifact@v4
+        with:
+          name: nextjs-out
+          path: ./out
+          run-id: ${{ steps.find-build.outputs.run_id }}
+          github-token: ${{ github.token }}
+
+      # Fallback: build if no artifact found (e.g. merge commit, direct push)
       - name: Setup Node.js
+        if: steps.find-build.outputs.run_id == ''
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
 
       - name: Install dependencies
+        if: steps.find-build.outputs.run_id == ''
         run: npm ci
 
       - name: Build (static export)
+        if: steps.find-build.outputs.run_id == ''
         run: npm run build
         env:
           NEXT_BASE_PATH: /Mecatronic/dev
